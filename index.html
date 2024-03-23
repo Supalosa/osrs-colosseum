@@ -52,10 +52,6 @@
       <button onclick="togglePillar(1)">North</button>
       <button onclick="togglePillar(2)">South</button>
       <button onclick="togglePlayerLoS()">LoS</button>
-      <!--<button onclick="toggleSpawns()">Spawns</button>
-    <button onclick="toggleZukSpots()">Zuk</button>
-    <button onclick="toggleNibblerSpawn()">Nib Spawn</button>
-    <button onclick="toggleChecker()">Checkers</button>-->
       <input
         id="wave"
         type="number"
@@ -70,7 +66,6 @@
     </div>
     <canvas
       id="map"
-      class="south"
       onselectstart="return false"
       oncontextmenu="return false"
       style=""
@@ -84,45 +79,175 @@
       var SIZE = [1, 2, 3, 3, 1, 4, 3, 4, 1, 1, 1];
       var RANGE = [10, 4, 15, 15, 1, 1, 15, 15, 1, 1, 1];
       var CD = [0, 3, 6, 6, 4, 4, 4, 4, 0];
-      var zuk_safe_spots = [
-        [3, 0],
-        [9, 0],
-        [19, 0],
-        [25, 0],
-      ];
 
       var pillars = [
-        [0, 9],
-        [17, 7],
-        [10, 23],
-      ];
-      var filters = [true, true, true];
-      var south = true;
-
-      var spawns = [
-        [1, 5],
-        [22, 5],
-        [3, 11],
-        [23, 12],
-        [16, 17],
-        [5, 23],
+        [8, 10],
+        [23, 10],
+        [8, 25],
         [23, 25],
-        [1, 28],
-        [15, 28],
       ];
+      var filters = [true, true, true, true];
+      var south = false;
+
+      var spawns = [];
       //zuk spawns [9,7],[18,7]
+
+      // each entry represents the spans across the x axis for that a corresponding y value
+      const blockedTileRanges = [
+        [
+          [0, 13],
+          [15, 19], // door
+          [21, 34],
+        ],
+
+        [
+          [0, 9],
+          [25, 34],
+        ],
+
+        [
+          [0, 7],
+          [27, 34],
+        ],
+
+        [
+          [0, 6],
+          [28, 34],
+        ],
+
+        [
+          [0, 5],
+          [29, 34],
+        ],
+
+        [
+          [0, 4],
+          [30, 34],
+        ],
+
+        [
+          [0, 3],
+          [31, 34],
+        ],
+
+        [
+          [0, 2],
+          [32, 34],
+        ],
+
+        [
+          [0, 2],
+          [32, 34],
+        ],
+
+        [
+          [0, 1],
+          [33, 34],
+        ],
+        [
+          [0, 1],
+          [33, 34],
+        ],
+        [
+          [0, 1],
+          [33, 34],
+        ],
+        [
+          [0, 1],
+          [33, 34],
+        ],
+
+        [],
+        [],
+
+        [
+          [0, 1],
+          [33, 34],
+        ],
+        [
+          [0, 1],
+          [33, 34],
+        ],
+        [
+          [0, 1],
+          [33, 34],
+        ],
+        [
+          [0, 1],
+          [33, 34],
+        ],
+
+        [],
+        [],
+
+        [
+          [0, 1],
+          [33, 34],
+        ],
+        [
+          [0, 1],
+          [33, 34],
+        ],
+        [
+          [0, 1],
+          [33, 34],
+        ],
+        [
+          [0, 1],
+          [33, 34],
+        ],
+
+        [
+          [0, 2],
+          [32, 34],
+        ],
+        [
+          [0, 2],
+          [32, 34],
+        ],
+
+        [
+          [0, 3],
+          [31, 34],
+        ],
+        [
+          [0, 3],
+          [31, 34],
+        ],
+
+        [
+          [0, 5],
+          [29, 34],
+        ],
+        [
+          [0, 5],
+          [29, 34],
+        ],
+
+        [
+          [0, 7],
+          [27, 34],
+        ],
+
+        [
+          [0, 9],
+          [25, 34],
+        ],
+
+        [
+          [0, 13],
+          [15, 19], // door
+          [21, 34],
+        ],
+      ];
 
       var mode = 0;
       var degen = false;
-      var pillarW = true;
-      var pillarN = true;
-      var pillarS = true;
       var selected = [16, 5];
       var mobs = [];
       var tape = [];
       var showSpawns = true;
       var showPlayerLoS = true;
-      var showNibblerSpawn = true;
       var showZukSpots = true;
       var checker = true;
       var img_sources = [
@@ -228,8 +353,10 @@
       var can = document.getElementById("map");
       var ctx = can.getContext("2d");
       var size = 20;
-      can.width = size * (29 + 9);
-      can.height = size * 30;
+      var map_width = 34;
+      var map_height = 34;
+      can.width = size * map_width;
+      can.height = size * map_height;
       document.addEventListener("DOMContentLoaded", function () {
         var spawn = parent.location.search.replace("?", "").split(".");
         console.log(spawn);
@@ -259,7 +386,7 @@
           var selecting = false;
           x = Math.floor(x / size);
           y = Math.floor(y / size);
-          if (x < 29) {
+          if (x < map_width) {
             if (mobs.length == 0) {
               selected[0] = x;
               selected[1] = y;
@@ -284,7 +411,7 @@
         var y = e.offsetY;
         x = Math.floor(x / size);
         y = Math.floor(y / size);
-        if (x < 29) {
+        if (x < map_width) {
           for (var i = 0; i < mobs.length; i++) {
             if (mobs[i][0] == x && mobs[i][1] == y) {
               mobs.splice(i, 1);
@@ -358,33 +485,11 @@
               .concat(".");
           }
         }
-        if (pillarW === false) {
-          url = url.concat(".noWe");
-        }
-        if (pillarN === false) {
-          url = url.concat(".noN");
-        }
-        if (pillarS === false) {
-          url = url.concat(".noS");
-        }
         if (degen) {
           url = url.concat(".degeN");
         }
         copyQ(url);
         alert("Spawn URL Copied!");
-      }
-      function togglePillar(x) {
-        filters[x] = !filters[x];
-        if (x === 0) {
-          pillarW = !pillarW;
-        }
-        if (x === 1) {
-          pillarN = !pillarN;
-        }
-        if (x === 2) {
-          pillarS = !pillarS;
-        }
-        drawWave();
       }
       function toggleSpawns() {
         showSpawns = !showSpawns;
@@ -401,10 +506,6 @@
       function toggleNS() {
         document.getElementById("map").classList.toggle("south");
         degen = !degen;
-        drawWave();
-      }
-      function toggleNibblerSpawn() {
-        showNibblerSpawn = !showNibblerSpawn;
         drawWave();
       }
       function toggleChecker() {
@@ -677,6 +778,9 @@
       function drawWave() {
         ctx.globalAlpha = 1;
         ctx.clearRect(0, 0, can.width, can.height);
+
+        const scale = (p) => p * size;
+
         var colors = [
           "cyan",
           "grey",
@@ -692,10 +796,25 @@
         } else {
           checkerColor = "#fff";
         }
-        for (var i = 0; i < 870; i++) {
-          ctx.fillStyle = i % 2 ? "#fff" : checkerColor;
-          ctx.fillRect((i % 29) * size, Math.floor(i / 29) * size, size, size);
+        for (var i = 0; i < map_width * map_height; i++) {
+          const x = i % map_width;
+          const y = Math.floor(i / map_width);
+          ctx.fillStyle = (i + (y % 2)) % 2 ? "#fff" : checkerColor;
+          ctx.fillRect(x * size, y * size, size, size);
         }
+        // colosseum border
+        ctx.fillStyle = "#000";
+        blockedTileRanges.forEach((ranges, y) => {
+          ranges.forEach((range) => {
+            ctx.fillRect(
+              scale(range[0]),
+              scale(y),
+              scale(range[1] - range[0]),
+              scale(1)
+            );
+          });
+        });
+
         //pillars
         ctx.fillStyle = "#222";
         for (var i = 0; i < pillars.length; i++) {
@@ -722,26 +841,10 @@
             -4 * size
           );
         }
-        if (showNibblerSpawn) {
-          ctx.globalAlpha = 0.35;
-        } else {
-          ctx.globalAlpha = 0;
-        }
-        ctx.fillStyle = "blue";
-        ctx.fillRect(8 * size, (13 + 1) * size, 3 * size, -3 * size);
         if (showZukSpots) {
           ctx.globalAlpha = 0.35;
         } else {
           ctx.globalAlpha = 0;
-        }
-        ctx.fillStyle = "green";
-        for (var i = 0; i < zuk_safe_spots.length; i++) {
-          ctx.fillRect(
-            zuk_safe_spots[i][0] * size,
-            (zuk_safe_spots[i][1] + 1) * size,
-            1 * size,
-            -1 * size
-          );
         }
         ctx.globalAlpha = 1;
         //mobs
