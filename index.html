@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Inferno LOS</title>
+    <style>
+      #map {
+        border: 1px solid black;
+        display: inline-block;
+      }
+      #tape {
+        display: inline-block;
+        vertical-align: top;
+      }
+      button {
+        margin-bottom: 3px;
+      }
+      .south {
+        -webkit-transform: rotate(180deg);
+        -moz-transform: rotate(180deg);
+        -ms-transform: rotate(180deg);
+        -o-transform: rotate(180deg);
+        transform: rotate(180deg);
+      }
+    </style>
+  </head>
+  <body id="container">
+    <div style="margin-bottom: 10px; width: 756px; text-align: center">
+      <button onclick="remove()">Clear</button>
+      &nbsp;
+      <button onclick="place()">Place NPC</button>
+      &nbsp;
+      <button onclick="meleeDig()">Melee Dig</button>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+      <button onclick="setMode(0)">Player</button>
+      &nbsp;
+      <button onclick="setMode(1)">Bat</button>
+      &nbsp;
+      <button onclick="setMode(2)">Blob 1</button>
+      &nbsp;
+      <button onclick="setMode(3)">Blob 2</button>
+      &nbsp;
+      <button onclick="setMode(5)">Melee</button>
+      &nbsp;
+      <button onclick="setMode(6)">Ranger</button>
+      &nbsp;
+      <button onclick="setMode(7)">Mager</button>
+    </div>
+    <div style="margin-bottom: 10px; width: 756px; text-align: center">
+      &nbsp;&nbsp;&nbsp;Toggle: &nbsp;
+      <button onclick="toggleNS()">N/S</button>
+      <button onclick="togglePillar(0)">West</button>
+      <button onclick="togglePillar(1)">North</button>
+      <button onclick="togglePillar(2)">South</button>
+      <button onclick="togglePlayerLoS()">LoS</button>
+      <!--<button onclick="toggleSpawns()">Spawns</button>
+    <button onclick="toggleZukSpots()">Zuk</button>
+    <button onclick="toggleNibblerSpawn()">Nib Spawn</button>
+    <button onclick="toggleChecker()">Checkers</button>-->
+      <input
+        id="wave"
+        type="number"
+        style="width: 64px; text-align: center"
+        placeholder=" Wave #"
+        max="66"
+        min="1"
+      />
+      <button onClick="randomWave()">GO</button>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+      <button onClick="copySpawnURL()">Copy Spawn URL</button>
+    </div>
+    <canvas
+      id="map"
+      class="south"
+      onselectstart="return false"
+      oncontextmenu="return false"
+      style=""
+    ></canvas>
+    <br />
+    Based on some code from
+    <a href="https://bistools.github.io/inferno.html">Backseat's tool</a>.
+    <script>
+      var SIZE = [1, 2, 3, 3, 1, 4, 3, 4, 1, 1, 1];
+      var RANGE = [10, 4, 15, 15, 1, 1, 15, 15, 1, 1, 1];
+      var CD = [0, 3, 6, 6, 4, 4, 4, 4, 0];
+      var zuk_safe_spots = [
+        [3, 0],
+        [9, 0],
+        [19, 0],
+        [25, 0],
+      ];
+
+      var pillars = [
+        [0, 9],
+        [17, 7],
+        [10, 23],
+      ];
+      var filters = [true, true, true];
+      var south = true;
+
+      var spawns = [
+        [1, 5],
+        [22, 5],
+        [3, 11],
+        [23, 12],
+        [16, 17],
+        [5, 23],
+        [23, 25],
+        [1, 28],
+        [15, 28],
+      ];
+      //zuk spawns [9,7],[18,7]
+
+      var mode = 0;
+      var degen = false;
+      var pillarW = true;
+      var pillarN = true;
+      var pillarS = true;
+      var selected = [16, 5];
+      var mobs = [];
+      var tape = [];
+      var showSpawns = true;
+      var showPlayerLoS = true;
+      var showNibblerSpawn = true;
+      var showZukSpots = true;
+      var checker = true;
+      var img_sources = [
+        "",
+        "bat-sized.png",
+        "blob-sized.png",
+        "blob-sized.png",
+        "nibbler-sized-west.png",
+        "melee-sized.png",
+        "ranger-sized.png",
+        "mage-sized.png",
+        "nibbler-sized-west.png",
+        "nibbler-sized-north.png",
+        "nibbler-sized-south.png",
+      ];
+      var img_sources_north = [
+        "",
+        "bat-sized - Copy.png",
+        "blob-sized - Copy.png",
+        "blob-sized - Copy.png",
+        "nibbler-sized-west.png",
+        "melee-sized - Copy.png",
+        "ranger-sized - Copy.png",
+        "mage-sized - Copy.png",
+        "nibbler-sized-west.png",
+        "nibbler-sized-north.png",
+        "nibbler-sized-south.png",
+      ];
+      var nibblers = [
+        [3, 9, 8, 3, 9, 0],
+        [16, 7, 9, 16, 7, 0],
+        [10, 20, 10, 10, 20, 0],
+      ];
+      var waveList = [
+        [1],
+        [1, 1],
+        [],
+        [2],
+        [2, 1],
+        [2, 1, 1],
+        [2, 3],
+        [],
+        [5],
+        [5, 1],
+        [5, 1, 1],
+        [5, 2],
+        [5, 2, 1],
+        [5, 2, 1, 1],
+        [5, 2, 3],
+        [5, 5],
+        [],
+        [6],
+        [6, 1],
+        [6, 1, 1],
+        [6, 2],
+        [6, 2, 1],
+        [6, 2, 1, 1],
+        [6, 2, 3],
+        [6, 5],
+        [6, 5, 1],
+        [6, 5, 1, 1],
+        [6, 5, 2],
+        [6, 5, 2, 1],
+        [6, 5, 2, 1, 1],
+        [6, 5, 2, 3],
+        [6, 5, 5],
+        [6, 6],
+        [],
+        [7],
+        [7, 1],
+        [7, 1, 1],
+        [7, 2],
+        [7, 2, 1],
+        [7, 2, 1, 1],
+        [7, 2, 3],
+        [7, 5],
+        [7, 5, 1],
+        [7, 5, 1, 1],
+        [7, 5, 2],
+        [7, 5, 2, 1],
+        [7, 5, 2, 1, 1],
+        [7, 5, 2, 3],
+        [7, 5, 5],
+        [7, 6],
+        [7, 6, 1],
+        [7, 6, 1, 1],
+        [7, 6, 2],
+        [7, 6, 2, 1],
+        [7, 6, 2, 1, 1],
+        [7, 6, 2, 3],
+        [7, 6, 5],
+        [7, 6, 5, 1],
+        [7, 6, 5, 1, 1],
+        [7, 6, 5, 2],
+        [7, 6, 5, 2, 1],
+        [7, 6, 5, 2, 1, 1],
+        [7, 6, 5, 2, 3],
+        [7, 6, 5, 5],
+        [7, 6, 6],
+        [7, 7],
+      ];
+
+      var can = document.getElementById("map");
+      var ctx = can.getContext("2d");
+      var size = 20;
+      can.width = size * (29 + 9);
+      can.height = size * 30;
+      document.addEventListener("DOMContentLoaded", function () {
+        var spawn = parent.location.search.replace("?", "").split(".");
+        console.log(spawn);
+        for (i = 0; i < spawn.length; i++) {
+          if (spawn[i] === "degeN") {
+            toggleNS();
+          } else if (spawn[i] === "noWe") {
+            togglePillar(0);
+          } else if (spawn[i] === "noN") {
+            togglePillar(1);
+          } else if (spawn[i] === "noS") {
+            togglePillar(2);
+          } else {
+            var lx = parseInt(spawn[i].slice(0, 2));
+            var ly = parseInt(spawn[i].slice(2, 4));
+            var lm = parseInt(spawn[i].slice(4));
+            mobs.push([lx, ly, lm, lx, ly, 0]);
+          }
+        }
+        drawWave();
+      });
+      document
+        .getElementById("map")
+        .addEventListener("mousedown", function (e) {
+          var x = e.offsetX;
+          var y = e.offsetY;
+          var selecting = false;
+          x = Math.floor(x / size);
+          y = Math.floor(y / size);
+          if (x < 29) {
+            if (mobs.length == 0) {
+              selected[0] = x;
+              selected[1] = y;
+              drawWave();
+            } else {
+              for (var i = 0; i < mobs.length; i++) {
+                if (mobs[i][0] == x && mobs[i][1] == y) {
+                  selecting = true;
+                  drawWave();
+                }
+              }
+            }
+            if (!selecting) {
+              selected[0] = x;
+              selected[1] = y;
+              drawWave();
+            }
+          }
+        });
+      document.getElementById("map").addEventListener("dblclick", function (e) {
+        var x = e.offsetX;
+        var y = e.offsetY;
+        x = Math.floor(x / size);
+        y = Math.floor(y / size);
+        if (x < 29) {
+          for (var i = 0; i < mobs.length; i++) {
+            if (mobs[i][0] == x && mobs[i][1] == y) {
+              mobs.splice(i, 1);
+            }
+          }
+          drawWave();
+        }
+      });
+      document.getElementById("map").addEventListener("wheel", function (e) {
+        if (e.deltaY > 0) {
+          step();
+          drawWave();
+        } else {
+          reset();
+          drawWave();
+        }
+      });
+      document.addEventListener("keydown", function (e) {
+        switch (e.keyCode) {
+          case 38:
+            step();
+            drawWave();
+            break;
+          case 40:
+            reset();
+            drawWave();
+            break;
+          case 81:
+            mode = 1;
+            place();
+            drawWave();
+            break;
+          case 87:
+            mode = 2;
+            place();
+            drawWave();
+            break;
+          case 69:
+            mode = 5;
+            place();
+            drawWave();
+            break;
+          case 82:
+            mode = 6;
+            place();
+            drawWave();
+            break;
+          case 84:
+            mode = 7;
+            place();
+            drawWave();
+            break;
+          case 85:
+            mode = 4;
+            place();
+            drawWave();
+            break;
+        }
+      });
+      document.addEventListener("keydown", function (e) {
+        //keyboard shortcuts for future?
+      });
+      function copySpawnURL() {
+        var url = "https://ifreedive-osrs.github.io/?";
+        for (var i = 0; i < mobs.length; i++) {
+          if (mobs[i][2] > 0) {
+            url = url
+              .concat(("00" + mobs[i][0]).slice(-2))
+              .concat(("00" + mobs[i][1]).slice(-2))
+              .concat(mobs[i][2])
+              .concat(".");
+          }
+        }
+        if (pillarW === false) {
+          url = url.concat(".noWe");
+        }
+        if (pillarN === false) {
+          url = url.concat(".noN");
+        }
+        if (pillarS === false) {
+          url = url.concat(".noS");
+        }
+        if (degen) {
+          url = url.concat(".degeN");
+        }
+        copyQ(url);
+        alert("Spawn URL Copied!");
+      }
+      function togglePillar(x) {
+        filters[x] = !filters[x];
+        if (x === 0) {
+          pillarW = !pillarW;
+        }
+        if (x === 1) {
+          pillarN = !pillarN;
+        }
+        if (x === 2) {
+          pillarS = !pillarS;
+        }
+        drawWave();
+      }
+      function toggleSpawns() {
+        showSpawns = !showSpawns;
+        drawWave();
+      }
+      function togglePlayerLoS() {
+        showPlayerLoS = !showPlayerLoS;
+        drawWave();
+      }
+      function toggleZukSpots() {
+        showZukSpots = !showZukSpots;
+        drawWave();
+      }
+      function toggleNS() {
+        document.getElementById("map").classList.toggle("south");
+        degen = !degen;
+        drawWave();
+      }
+      function toggleNibblerSpawn() {
+        showNibblerSpawn = !showNibblerSpawn;
+        drawWave();
+      }
+      function toggleChecker() {
+        checker = !checker;
+        drawWave();
+      }
+      function meleeDig() {
+        for (var i = 0; i < mobs.length; i++) {
+          if (mobs[i][2] == 5) {
+            if (digPosition(selected[0] - 3, selected[1] + 3)) {
+              mobs[i][0] = selected[0] - 3;
+              mobs[i][1] = selected[1] + 3;
+            } else if (digPosition(selected[0], selected[1])) {
+              mobs[i][0] = selected[0];
+              mobs[i][1] = selected[1];
+            } else if (digPosition(selected[0] - 3, selected[1])) {
+              mobs[i][0] = selected[0] - 3;
+              mobs[i][1] = selected[1];
+            } else if (digPosition(selected[0], selected[1] + 3)) {
+              mobs[i][0] = selected[0];
+              mobs[i][1] = selected[1] + 3;
+            } else {
+              mobs[i][0] = selected[0] - 1;
+              mobs[i][1] = selected[1] + 1;
+            }
+          }
+        }
+        drawWave();
+      }
+      function isPillar(x, y) {
+        var isPillar = false;
+        for (var j = 0; j < pillars.length; j++) {
+          if (filters[j]) {
+            isPillar =
+              doesCollide(x, y, 1, pillars[j][0], pillars[j][1], 3) || isPillar;
+          }
+        }
+        return isPillar;
+      }
+      function hasLOS(x1, y1, x2, y2, s = 1, r = 1, isNPC = false) {
+        let dx = x2 - x1;
+        let dy = y2 - y1;
+        if (
+          isPillar(x1, y1) ||
+          isPillar(x2, y2) ||
+          doesCollide(x1, y1, s, x2, y2, 1)
+        ) {
+          return false;
+        }
+        //assume range 1 is melee
+        if (r == 1) {
+          return (
+            (dx < s && dx >= 0 && (dy == 1 || dy == -s)) ||
+            (dy > -s && dy <= 0 && (dx == -1 || dx == s))
+          );
+        }
+        if (isNPC) {
+          var tx = Math.max(x1, Math.min(x1 + s - 1, x2));
+          var ty = Math.max(y1 - s + 1, Math.min(y1, y2));
+          return hasLOS(x2, y2, tx, ty, 1, r, false);
+        }
+        let dxAbs = Math.abs(dx);
+        let dyAbs = Math.abs(dy);
+        if (dxAbs > r || dyAbs > r) {
+          return false;
+        } //iFreedive
+        if (dxAbs > dyAbs) {
+          let xTile = x1;
+          let y = (y1 << 16) + 0x8000;
+          let slope = Math.trunc((dy << 16) / dxAbs); // Integer division
+          let xInc = dx > 0 ? 1 : -1;
+          if (dy < 0) {
+            y -= 1; // For correct rounding
+          }
+          while (xTile !== x2) {
+            xTile += xInc;
+            let yTile = y >>> 16;
+            if (isPillar(xTile, yTile)) {
+              return false;
+            }
+            y += slope;
+            let newYTile = y >>> 16;
+            if (newYTile !== yTile && isPillar(xTile, newYTile)) {
+              return false;
+            }
+          }
+        } else {
+          let yTile = y1;
+          let x = (x1 << 16) + 0x8000;
+          let slope = Math.trunc((dx << 16) / dyAbs); // Integer division
+          let yInc = dy > 0 ? 1 : -1;
+          if (dx < 0) {
+            x -= 1; // For correct rounding
+          }
+          while (yTile !== y2) {
+            yTile += yInc;
+            let xTile = x >>> 16;
+            if (isPillar(xTile, yTile)) {
+              return false;
+            }
+            x += slope;
+            let newXTile = x >>> 16;
+            if (newXTile !== xTile && isPillar(newXTile, yTile)) {
+              return false;
+            }
+          }
+        }
+        return true;
+      }
+      function doesCollide(x, y, s, x2, y2, s2) {
+        if (
+          x > x2 + s2 - 1 ||
+          x + s - 1 < x2 ||
+          y - s + 1 > y2 ||
+          y < y2 - s2 + 1
+        ) {
+          return false;
+        }
+        return true;
+      }
+      function legalPosition(x, y, s, index) {
+        var t = mobs[index][2];
+
+        if (y - (s - 1) < 0 || x + (s - 1) > 28) {
+          return false;
+        }
+        var collision = false;
+        for (var i = 0; i < pillars.length; i++) {
+          if (filters[i]) {
+            collision =
+              collision | doesCollide(x, y, s, pillars[i][0], pillars[i][1], 3);
+          }
+        }
+        if (t != 4) {
+          for (var i = 0; i < mobs.length; i++) {
+            if (mobs[i][2] < 8) {
+              if (i != index && mobs[i][2] != 4) {
+                collision =
+                  collision |
+                  doesCollide(
+                    x,
+                    y,
+                    s,
+                    mobs[i][0],
+                    mobs[i][1],
+                    SIZE[mobs[i][2]]
+                  );
+              }
+            }
+          }
+        }
+        return !collision;
+      }
+      function digPosition(x, y) {
+        if (y - 3 < 0 || x + 3 > 28 || x < 0 || y > 29) {
+          return false;
+        }
+        var collision = false;
+        for (var i = 0; i < pillars.length; i++) {
+          if (filters[i]) {
+            collision =
+              collision | doesCollide(x, y, 4, pillars[i][0], pillars[i][1], 3);
+          }
+        }
+        return !collision;
+      }
+      function place() {
+        if (mode > 0) {
+          //x y mode ox oy cooldown
+          //prevent 2 mobs on same tile
+          for (var i = 0; i < mobs.length; i++) {
+            if (mobs[i][3] == selected[0] && mobs[i][4] == selected[1]) {
+              return;
+            }
+          }
+          mobs.push([
+            selected[0],
+            selected[1],
+            mode,
+            selected[0],
+            selected[1],
+            0,
+          ]);
+          mobs.sort(function (a, b) {
+            return b[2] - a[2];
+          });
+        }
+        mode = 0;
+        drawWave();
+      }
+      function step() {
+        if (mode == 0 && mobs.length > 0) {
+          var line = [];
+          for (var i = 0; i < mobs.length; i++) {
+            if (mobs[i][2] < 8) {
+              var mob = mobs[i];
+              mob[5]--;
+              var x = mob[0];
+              var y = mob[1];
+              var t = mob[2];
+              var s = SIZE[t];
+              var r = RANGE[t];
+              line.push(-t);
+              //move
+              if (!hasLOS(x, y, selected[0], selected[1], s, r, true)) {
+                var dx = x + Math.sign(selected[0] - x);
+                var dy = y + Math.sign(selected[1] - y);
+                //allows corner safespotting
+                if (doesCollide(dx, dy, s, selected[0], selected[1], 1)) {
+                  dy = mob[1];
+                }
+                if (legalPosition(dx, dy, s, i)) {
+                  mob[0] = dx;
+                  mob[1] = dy;
+                } else if (legalPosition(dx, y, s, i)) {
+                  mob[0] = dx;
+                } else if (legalPosition(x, dy, s, i)) {
+                  mob[1] = dy;
+                }
+              }
+              x = mob[0];
+              y = mob[1];
+              //attack
+              if (hasLOS(x, y, selected[0], selected[1], s, r, true)) {
+                if (mob[5] <= 0) {
+                  line[line.length - 1] *= -1;
+                  mob[5] = CD[t];
+                }
+              }
+            }
+          }
+          tape.push(line);
+        }
+      }
+      function remove() {
+        mobs = [];
+        reset();
+        drawWave();
+      }
+      function reset() {
+        for (var i = 0; i < mobs.length; i++) {
+          mobs[i][0] = mobs[i][3];
+          mobs[i][1] = mobs[i][4];
+          mobs[i][5] = 0;
+        }
+        tape = [];
+      }
+      function setMode(m) {
+        mode = m;
+        drawWave();
+      }
+      function drawLOS(x, y, s, r, isNPC, color = "red") {
+        if (showPlayerLoS) {
+          ctx.globalAlpha = 0.35;
+        } else {
+          ctx.globalAlpha = 0;
+        }
+        for (var i = 0; i < 870; i++) {
+          ctx.fillStyle = color;
+
+          var x2 = i % 29;
+          var y2 = Math.floor(i / 29);
+
+          if (hasLOS(x, y, x2, y2, s, r, isNPC)) {
+            ctx.fillRect(x2 * size, y2 * size, size, size);
+          }
+        }
+        ctx.globalAlpha = 1;
+      }
+      function drawWave() {
+        ctx.globalAlpha = 1;
+        ctx.clearRect(0, 0, can.width, can.height);
+        var colors = [
+          "cyan",
+          "grey",
+          "yellow",
+          "blue",
+          "red",
+          "orange",
+          "lime",
+          "red",
+        ];
+        if (checker == true) {
+          checkerColor = "#eee";
+        } else {
+          checkerColor = "#fff";
+        }
+        for (var i = 0; i < 870; i++) {
+          ctx.fillStyle = i % 2 ? "#fff" : checkerColor;
+          ctx.fillRect((i % 29) * size, Math.floor(i / 29) * size, size, size);
+        }
+        //pillars
+        ctx.fillStyle = "#222";
+        for (var i = 0; i < pillars.length; i++) {
+          if (filters[i]) {
+            ctx.fillRect(
+              pillars[i][0] * size,
+              (pillars[i][1] + 1) * size,
+              3 * size,
+              -3 * size
+            );
+          }
+        }
+        if (showSpawns) {
+          ctx.globalAlpha = 0.35;
+        } else {
+          ctx.globalAlpha = 0;
+        }
+        ctx.fillStyle = "#999";
+        for (var i = 0; i < spawns.length; i++) {
+          ctx.fillRect(
+            spawns[i][0] * size,
+            (spawns[i][1] + 1) * size,
+            4 * size,
+            -4 * size
+          );
+        }
+        if (showNibblerSpawn) {
+          ctx.globalAlpha = 0.35;
+        } else {
+          ctx.globalAlpha = 0;
+        }
+        ctx.fillStyle = "blue";
+        ctx.fillRect(8 * size, (13 + 1) * size, 3 * size, -3 * size);
+        if (showZukSpots) {
+          ctx.globalAlpha = 0.35;
+        } else {
+          ctx.globalAlpha = 0;
+        }
+        ctx.fillStyle = "green";
+        for (var i = 0; i < zuk_safe_spots.length; i++) {
+          ctx.fillRect(
+            zuk_safe_spots[i][0] * size,
+            (zuk_safe_spots[i][1] + 1) * size,
+            1 * size,
+            -1 * size
+          );
+        }
+        ctx.globalAlpha = 1;
+        //mobs
+        for (var i = 0; i < mobs.length; i++) {
+          var x = mobs[i][0];
+          var y = mobs[i][1];
+          var s = SIZE[mobs[i][2]];
+          var r = RANGE[mobs[i][2]];
+          var c = colors[mobs[i][2]];
+          ctx.fillStyle = ctx.strokeStyle = c;
+          if (mobs[i][2] < 8 && mobs[i][2] != 4) {
+            ctx.fillRect(
+              mobs[i][0] * size,
+              (mobs[i][1] + 1) * size,
+              1 * size,
+              -1 * size
+            );
+            ctx.strokeRect(
+              mobs[i][0] * size + 1,
+              (mobs[i][1] + 1) * size - 1,
+              s * size,
+              -s * size
+            );
+          }
+          if (
+            mode == 0 &&
+            hasLOS(mobs[i][0], mobs[i][1], selected[0], selected[1], s, r, true)
+          ) {
+            ctx.fillStyle = "black";
+            ctx.fillRect(
+              mobs[i][0] * size,
+              (mobs[i][1] + 1) * size,
+              (1 * size) / 4,
+              (-1 * size) / 4
+            );
+          }
+        }
+        var s = SIZE[mode];
+        var r = RANGE[mode];
+        var c = colors[mode];
+        drawLOS(selected[0], selected[1], s, r, mode > 0);
+        ctx.fillStyle = ctx.strokeStyle = c;
+        var blobAlready = false;
+        if (mode < 8 && mode != 4) {
+          ctx.fillRect(
+            selected[0] * size,
+            (selected[1] + 1) * size,
+            1 * size,
+            -1 * size
+          );
+          ctx.strokeRect(
+            selected[0] * size,
+            (selected[1] + 1) * size,
+            s * size,
+            -s * size
+          );
+        }
+        var current_i = new Image();
+        if (document.getElementById("map").classList.contains("south")) {
+          current_i.src = img_sources[mode];
+        } else {
+          current_i.src = img_sources_north[mode];
+        }
+        ctx.drawImage(
+          current_i,
+          selected[0] * size,
+          (selected[1] - s + 1) * size
+        );
+        var offset = 29 * size;
+        for (var i = 0; i < tape.length; i++) {
+          ctx.fillStyle = i % 2 == 0 ? "#ddd" : "#eee";
+          ctx.fillRect(offset, size * i, size * 9, size);
+          for (var j = 0; j < tape[i].length; j++) {
+            var t = tape[i][j];
+            if (i >= 3) {
+              console.log(tape[i - 3][j]);
+            }
+            if (t > 0) {
+              ctx.fillStyle = [
+                "",
+                "grey",
+                "yellow",
+                "blue",
+                "purple",
+                "orange",
+                "lime",
+                "red",
+              ][t];
+              ctx.fillRect(offset + size * j, size * i, size, size);
+            } else if (
+              (t == -2 || t == -3) &&
+              i >= 3 &&
+              (tape[i - 3][j] == 2 || tape[i - 3][j] == 3)
+            ) {
+              ctx.fillStyle = "black";
+              ctx.fillRect(offset + size * j, size * i, size, size);
+            }
+          }
+        }
+        for (var i = 0; i < mobs.length; i++) {
+          var mob_i = new Image();
+          if (document.getElementById("map").classList.contains("south")) {
+            mob_i.src = img_sources[mobs[i][2]];
+          } else {
+            mob_i.src = img_sources_north[mobs[i][2]];
+          }
+          ctx.drawImage(
+            mob_i,
+            mobs[i][0] * size,
+            (mobs[i][1] - SIZE[mobs[i][2]] + 1) * size
+          );
+        }
+      }
+      function randomWave() {
+        mode = 0;
+        remove();
+        let wave = document.getElementById("wave").value;
+        let loaded = waveList[wave - 1];
+        mobs.push(nibblers[Math.floor(Math.random() * 3)]);
+        let availSpawns = JSON.parse(JSON.stringify(spawns));
+        for (i = 0; i < loaded.length; i++) {
+          let removed = availSpawns.splice(
+            Math.floor(Math.random() * availSpawns.length),
+            1
+          );
+          mobs.push([
+            removed[0][0],
+            removed[0][1],
+            loaded[i],
+            removed[0][0],
+            removed[0][1],
+            0,
+          ]);
+          mobs.sort(function (a, b) {
+            return b[2] - a[2];
+          });
+        }
+        console.log(mobs);
+        drawWave();
+      }
+      function copyQ(val) {
+        var container = document.getElementById("container");
+        var inp = document.createElement("input");
+        inp.type = "text";
+        container.appendChild(inp);
+        inp.value = val;
+        inp.select();
+        document.execCommand("Copy");
+        container.removeChild(container.lastChild);
+      }
+    </script>
+  </body>
+</html>
