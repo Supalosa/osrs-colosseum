@@ -257,6 +257,8 @@
       var showZukSpots = true;
       var checker = true;
 
+      const manticoreTicksRemaining = {};
+
       var can = document.getElementById("map");
       var ctx = can.getContext("2d");
       var size = 20;
@@ -576,7 +578,7 @@
               var t = mob[2];
               var s = SIZE[t];
               var r = RANGE[t];
-              line.push(-t);
+              var attacked = false;
               //move
               if (!hasLOS(x, y, selected[0], selected[1], s, r, true)) {
                 var dx = x + Math.sign(selected[0] - x);
@@ -599,12 +601,24 @@
               //attack
               if (hasLOS(x, y, selected[0], selected[1], s, r, true)) {
                 if (mob[5] <= 0) {
-                  line[line.length - 1] *= -1;
+                  if (mob[2] === MANTICORE) {
+                    manticoreTicksRemaining[i] = 3;
+                  }
+                  attacked = true;
                   mob[5] = CD[t];
                 }
               }
+              line.push(attacked ? t : -t);
             }
           }
+          Object.entries(manticoreTicksRemaining).forEach(([index, ticks]) => {
+            if (ticks > 0) {
+              manticoreTicksRemaining[index] = ticks - 1;
+              line[index - 1] = MANTICORE;
+            } else {
+              delete manticoreTicksRemaining[index];
+            }
+          });
           tape.push(line);
         }
       }
@@ -631,11 +645,12 @@
         } else {
           ctx.globalAlpha = 0;
         }
-        for (var i = 0; i < 870; i++) {
+
+        for (var i = 0; i < map_width * map_height; i++) {
           ctx.fillStyle = color;
 
-          var x2 = i % 29;
-          var y2 = Math.floor(i / 29);
+          var x2 = i % map_width;
+          var y2 = Math.floor(i / map_height);
 
           if (hasLOS(x, y, x2, y2, s, r, isNPC)) {
             ctx.fillRect(x2 * size, y2 * size, size, size);
