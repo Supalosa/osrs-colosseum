@@ -37,7 +37,9 @@
       &nbsp;
       <button onclick="setMode(3)">Jaguar</button>
       &nbsp;
-      <button onclick="setMode(4)">Manticore</button>
+      <button onclick="setMode(4, 'r')">Manticore (Range)</button>
+      &nbsp;
+      <button onclick="setMode(4, 'm')">Manticore (Mage)</button>
       &nbsp;
       <button onclick="setMode(5)">Minotaur</button>
       &nbsp;
@@ -59,7 +61,13 @@
     Based on
     <a href="https://ifreedive-osrs.github.io/">ifreedive's tool</a> which is in
     turn based on some code from
-    <a href="https://bistools.github.io/inferno.html">Backseat's tool</a>.
+    <a href="https://bistools.github.io/inferno.html">Backseat's tool</a>,
+    adapted by Supalosa (contact on discord for bug reports)<br />
+    Known issues/TODO:
+    <ul>
+      <li>Double Manticore offticking</li>
+      <li>Manticore should stop moving during attack sequence</li>
+    </ul>
     <script>
       var SIZE = [1, 1, 3, 2, 3, 3, 3];
       var RANGE = [10, 10, 15, 1, 15, 1, 15];
@@ -73,16 +81,15 @@
         "minotaur.png",
         "shockwave_colossus.png",
       ];
-      var img_sources_north = [
-        "",
-        "serpent_shaman.png",
-        "javelin_colossus.png",
-        "jaguar_warrior.png",
-        "manticore.png",
-        "minotaur.png",
-        "shockwave_colossus.png",
-      ];
+      var img_sources_north = img_sources;
       const MANTICORE = 4;
+      const MANTICORE_RANGE_FIRST = "r";
+      const MANTICORE_MAGE_FIRST = "m";
+      const MANTICORE_ATTACKS = ["lime", "blue", "red"];
+      const MANTICORE_PATTERNS = {
+        [MANTICORE_RANGE_FIRST]: [0, 1, 2],
+        [MANTICORE_MAGE_FIRST]: [1, 0, 2],
+      };
 
       var pillars = [
         [8, 10],
@@ -248,6 +255,7 @@
       var colors = ["cyan", "grey", "yellow", "blue", "red", "orange", "lime"];
 
       var mode = 0;
+      var modeExtra = null;
       var degen = false;
       var selected = [16, 5];
       var mobs = [];
@@ -257,7 +265,7 @@
       var showZukSpots = true;
       var checker = true;
 
-      const manticoreTicksRemaining = {};
+      let manticoreTicksRemaining = {};
 
       var can = document.getElementById("map");
       var ctx = can.getContext("2d");
@@ -544,7 +552,7 @@
       }
       function place() {
         if (mode > 0) {
-          //x y mode ox oy cooldown
+          //x y mode ox oy cooldown extra
           //prevent 2 mobs on same tile
           for (var i = 0; i < mobs.length; i++) {
             if (mobs[i][3] == selected[0] && mobs[i][4] == selected[1]) {
@@ -558,12 +566,14 @@
             selected[0],
             selected[1],
             0,
+            modeExtra,
           ]);
           mobs.sort(function (a, b) {
             return b[2] - a[2];
           });
         }
         mode = 0;
+        modeExtra = null;
         drawWave();
       }
       function step() {
@@ -612,9 +622,12 @@
             }
           }
           Object.entries(manticoreTicksRemaining).forEach(([index, ticks]) => {
-            if (ticks > 0) {
+            if (ticks > 0 && mobs[index]) {
+              const manticoreMode = mobs[index][6];
+              const manticoreStyles = MANTICORE_PATTERNS[manticoreMode];
+              const currentStyle = manticoreStyles[3 - ticks];
+              line[index - 1] = MANTICORE | (currentStyle << 8);
               manticoreTicksRemaining[index] = ticks - 1;
-              line[index - 1] = MANTICORE;
             } else {
               delete manticoreTicksRemaining[index];
             }
@@ -623,7 +636,8 @@
         }
       }
       function remove() {
-        mobs = [];
+        // keep the player only
+        mobs = [mobs[0]];
         reset();
         drawWave();
       }
@@ -633,10 +647,12 @@
           mobs[i][1] = mobs[i][4];
           mobs[i][5] = 0;
         }
+        manticoreTicksRemaining = {};
         tape = [];
       }
-      function setMode(m) {
+      function setMode(m, extra) {
         mode = m;
+        modeExtra = extra;
         drawWave();
       }
       function drawLOS(x, y, s, r, isNPC, color = "red") {
@@ -663,6 +679,22 @@
         ctx.clearRect(0, 0, can.width, can.height);
 
         const scale = (p) => p * size;
+        function drawManticorePattern(pattern, x, y) {
+          pattern.forEach((colorIndex, index) => {
+            const color = MANTICORE_ATTACKS[colorIndex];
+            ctx.strokeStyle = color;
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.arc(
+              scale(x + 2.5),
+              scale(y - index + 0.5),
+              size / 2,
+              0,
+              Math.PI * 2
+            );
+            ctx.fill();
+          });
+        }
 
         if (checker == true) {
           checkerColor = "#eee";
@@ -724,11 +756,12 @@
         for (var i = 0; i < mobs.length; i++) {
           var x = mobs[i][0];
           var y = mobs[i][1];
-          var s = SIZE[mobs[i][2]];
-          var r = RANGE[mobs[i][2]];
-          var c = colors[mobs[i][2]];
+          const t = mobs[i][2];
+          var s = SIZE[t];
+          var r = RANGE[t];
+          var c = colors[t];
           ctx.fillStyle = ctx.strokeStyle = c;
-          if (mobs[i][2] < 8) {
+          if (t < 8) {
             ctx.fillRect(
               mobs[i][0] * size,
               (mobs[i][1] + 1) * size,
@@ -775,36 +808,64 @@
           );
         }
         var current_i = new Image();
-        if (document.getElementById("map").classList.contains("south")) {
-          current_i.src = img_sources[mode];
-        } else {
-          current_i.src = img_sources_north[mode];
+        if (mode > 0) {
+          if (document.getElementById("map").classList.contains("south")) {
+            current_i.src = img_sources[mode];
+          } else {
+            current_i.src = img_sources_north[mode];
+          }
+          ctx.drawImage(
+            current_i,
+            selected[0] * size,
+            (selected[1] - s + 1) * size,
+            SIZE[mode] * size,
+            SIZE[mode] * size
+          );
         }
-        ctx.drawImage(
-          current_i,
-          selected[0] * size,
-          (selected[1] - s + 1) * size,
-          SIZE[mode] * size,
-          SIZE[mode] * size
-        );
+        if (mode === MANTICORE && modeExtra) {
+          const colorPattern = MANTICORE_PATTERNS[modeExtra];
+          drawManticorePattern(colorPattern, selected[0], selected[1]);
+        }
+        // ticker tape
         var offset = map_width * size;
         for (var i = 0; i < tape.length; i++) {
           ctx.fillStyle = i % 2 == 0 ? "#ddd" : "#eee";
           ctx.fillRect(offset, size * i, size * 9, size);
           for (var j = 0; j < tape[i].length; j++) {
-            var t = tape[i][j];
-            if (t > 0) {
+            var t = tape[i][j] & 0xff;
+            if (tape[i][j] > 0 && t > 0) {
+              console.log("drawing", t, tape[i][j]);
               ctx.fillStyle = colors[t];
               ctx.fillRect(offset + size * j, size * i, size, size);
+            }
+            if (t === MANTICORE) {
+              const pattern = (tape[i][j] >> 8) & 0xff;
+              ctx.fillStyle = MANTICORE_ATTACKS[pattern];
+              ctx.beginPath();
+              ctx.arc(
+                offset + size * (j + 0.5),
+                size * (i + 0.5),
+                size / 2,
+                0,
+                Math.PI * 2
+              );
+              ctx.fill();
+              ctx.strokeStyle = "white";
+              ctx.stroke();
             }
           }
         }
         for (var i = 0; i < mobs.length; i++) {
+          const t = mobs[i][2];
+          if (!t) {
+            // player
+            continue;
+          }
           var mob_i = new Image();
           if (document.getElementById("map").classList.contains("south")) {
-            mob_i.src = img_sources[mobs[i][2]];
+            mob_i.src = img_sources[t];
           } else {
-            mob_i.src = img_sources_north[mobs[i][2]];
+            mob_i.src = img_sources_north[t];
           }
           ctx.drawImage(
             mob_i,
@@ -813,6 +874,11 @@
             SIZE[mobs[i][2]] * size,
             SIZE[mobs[i][2]] * size
           );
+          if (t === MANTICORE) {
+            const mobExtra = mobs[i][6];
+            const colorPattern = MANTICORE_PATTERNS[mobExtra];
+            drawManticorePattern(colorPattern, mobs[i][0], mobs[i][1]);
+          }
         }
       }
       function copyQ(val) {
