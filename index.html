@@ -33,17 +33,15 @@
       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
       <button onclick="setMode(0)">Player</button>
       &nbsp;
-      <button onclick="setMode(1)">Bat</button>
+      <button onclick="setMode(1)">Serpent</button>
       &nbsp;
-      <button onclick="setMode(2)">Blob 1</button>
+      <button onclick="setMode(2)">Javelin</button>
       &nbsp;
-      <button onclick="setMode(3)">Blob 2</button>
+      <button onclick="setMode(3)">Manticore</button>
       &nbsp;
-      <button onclick="setMode(5)">Melee</button>
+      <button onclick="setMode(5)">Minotaur</button>
       &nbsp;
-      <button onclick="setMode(6)">Ranger</button>
-      &nbsp;
-      <button onclick="setMode(7)">Mager</button>
+      <button onclick="setMode(6)">Shockwave</button>
     </div>
     <div style="margin-bottom: 10px; width: 756px; text-align: center">
       &nbsp;&nbsp;&nbsp;Toggle: &nbsp;
@@ -76,9 +74,27 @@
     turn based on some code from
     <a href="https://bistools.github.io/inferno.html">Backseat's tool</a>.
     <script>
-      var SIZE = [1, 2, 3, 3, 1, 4, 3, 4, 1, 1, 1];
-      var RANGE = [10, 4, 15, 15, 1, 1, 15, 15, 1, 1, 1];
-      var CD = [0, 3, 6, 6, 4, 4, 4, 4, 0];
+      var SIZE = [1, 1, 3, 2, 3, 3, 3];
+      var RANGE = [10, 4, 15, 15, 1, 1, 15];
+      var CD = [0, 5, 5, 5, 5, 5, 5];
+      var img_sources = [
+        "",
+        "serpent_shaman.png",
+        "javelin_colossus.png",
+        "jaguar_warrior.png",
+        "manticore.png",
+        "minotaur.png",
+        "shockwave_colossus.png",
+      ];
+      var img_sources_north = [
+        "",
+        "serpent_shaman.png",
+        "javelin_colossus.png",
+        "jaguar_warrior.png",
+        "manticore.png",
+        "minotaur.png",
+        "shockwave_colossus.png",
+      ];
 
       var pillars = [
         [8, 10],
@@ -90,7 +106,6 @@
       var south = false;
 
       var spawns = [];
-      //zuk spawns [9,7],[18,7]
 
       // each entry represents the spans across the x axis for that a corresponding y value
       const blockedTileRanges = [
@@ -251,37 +266,6 @@
       var showPlayerLoS = true;
       var showZukSpots = true;
       var checker = true;
-      var img_sources = [
-        "",
-        "bat-sized.png",
-        "blob-sized.png",
-        "blob-sized.png",
-        "nibbler-sized-west.png",
-        "melee-sized.png",
-        "ranger-sized.png",
-        "mage-sized.png",
-        "nibbler-sized-west.png",
-        "nibbler-sized-north.png",
-        "nibbler-sized-south.png",
-      ];
-      var img_sources_north = [
-        "",
-        "bat-sized - Copy.png",
-        "blob-sized - Copy.png",
-        "blob-sized - Copy.png",
-        "nibbler-sized-west.png",
-        "melee-sized - Copy.png",
-        "ranger-sized - Copy.png",
-        "mage-sized - Copy.png",
-        "nibbler-sized-west.png",
-        "nibbler-sized-north.png",
-        "nibbler-sized-south.png",
-      ];
-      var nibblers = [
-        [3, 9, 8, 3, 9, 0],
-        [16, 7, 9, 16, 7, 0],
-        [10, 20, 10, 10, 20, 0],
-      ];
       var waveList = [
         [1],
         [1, 1],
@@ -356,7 +340,7 @@
       var size = 20;
       var map_width = 34;
       var map_height = 34;
-      can.width = size * map_width;
+      can.width = size * map_width + 9 * size;
       can.height = size * map_height;
       document.addEventListener("DOMContentLoaded", function () {
         var spawn = parent.location.search.replace("?", "").split(".");
@@ -912,9 +896,11 @@
         ctx.drawImage(
           current_i,
           selected[0] * size,
-          (selected[1] - s + 1) * size
+          (selected[1] - s + 1) * size,
+          SIZE[mode] * size,
+          SIZE[mode] * size
         );
-        var offset = 29 * size;
+        var offset = map_width * size;
         for (var i = 0; i < tape.length; i++) {
           ctx.fillStyle = i % 2 == 0 ? "#ddd" : "#eee";
           ctx.fillRect(offset, size * i, size * 9, size);
@@ -955,7 +941,9 @@
           ctx.drawImage(
             mob_i,
             mobs[i][0] * size,
-            (mobs[i][1] - SIZE[mobs[i][2]] + 1) * size
+            (mobs[i][1] - SIZE[mobs[i][2]] + 1) * size,
+            SIZE[mobs[i][2]] * size,
+            SIZE[mobs[i][2]] * size
           );
         }
       }
@@ -964,7 +952,6 @@
         remove();
         let wave = document.getElementById("wave").value;
         let loaded = waveList[wave - 1];
-        mobs.push(nibblers[Math.floor(Math.random() * 3)]);
         let availSpawns = JSON.parse(JSON.stringify(spawns));
         for (i = 0; i < loaded.length; i++) {
           let removed = availSpawns.splice(
