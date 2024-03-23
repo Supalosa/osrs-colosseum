@@ -29,8 +29,6 @@
       &nbsp;
       <button onclick="place()">Place NPC</button>
       &nbsp;
-      <button onclick="meleeDig()">Melee Dig</button>
-      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
       <button onclick="setMode(0)">Player</button>
       &nbsp;
       <button onclick="setMode(1)">Serpent</button>
@@ -872,7 +870,6 @@
         var c = colors[mode];
         drawLOS(selected[0], selected[1], s, r, mode > 0);
         ctx.fillStyle = ctx.strokeStyle = c;
-        var blobAlready = false;
         if (mode < 8 && mode != 4) {
           ctx.fillRect(
             selected[0] * size,
