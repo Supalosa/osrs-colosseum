@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>Inferno LOS</title>
+    <title>Colosseum LOS</title>
     <style>
       #map {
         border: 1px solid black;
@@ -44,7 +44,7 @@
       <button onclick="setMode(6)">Shockwave</button>
     </div>
     <div style="margin-bottom: 10px; width: 756px; text-align: center">
-      &nbsp;&nbsp;&nbsp;Toggle: &nbsp;
+      (North is always top in this tool) &nbsp;&nbsp;&nbsp;Toggle: &nbsp;
       <!--<button onclick="toggleNS()">N/S</button>-->
       <button onclick="togglePlayerLoS()">LoS</button>
       <button onClick="copySpawnURL()">Copy Spawn URL</button>
@@ -62,12 +62,12 @@
     <a href="https://bistools.github.io/inferno.html">Backseat's tool</a>.
     <script>
       var SIZE = [1, 1, 3, 2, 3, 3, 3];
-      var RANGE = [10, 10, 15, 1, 1, 1, 15];
-      var CD = [0, 5, 5, 5, 5, 5, 5];
+      var RANGE = [10, 10, 15, 1, 15, 1, 15];
+      var CD = [0, 5, 5, 5, 10, 5, 5];
       var img_sources = [
         "",
         "serpent_shaman.png", // 10 range
-        "javelin_colossus.png",
+        "javelin_colossus.png", // 15 range
         "jaguar_warrior.png",
         "manticore.png",
         "minotaur.png",
@@ -244,6 +244,8 @@
         ],
       ];
 
+      var colors = ["cyan", "grey", "yellow", "blue", "red", "orange", "lime"];
+
       var mode = 0;
       var degen = false;
       var selected = [16, 5];
@@ -263,7 +265,6 @@
       can.height = size * map_height;
       document.addEventListener("DOMContentLoaded", function () {
         var spawn = parent.location.search.replace("?", "").split(".");
-        console.log(spawn);
         for (i = 0; i < spawn.length; i++) {
           if (spawn[i] === "degeN") {
             toggleNS();
@@ -517,7 +518,7 @@
         if (t != 4) {
           for (var i = 0; i < mobs.length; i++) {
             if (mobs[i][2] < 8) {
-              if (i != index && mobs[i][2] != 4) {
+              if (i != index) {
                 collision =
                   collision |
                   doesCollide(
@@ -656,16 +657,6 @@
 
         const scale = (p) => p * size;
 
-        var colors = [
-          "cyan",
-          "grey",
-          "yellow",
-          "blue",
-          "red",
-          "orange",
-          "lime",
-          "red",
-        ];
         if (checker == true) {
           checkerColor = "#eee";
         } else {
@@ -730,7 +721,7 @@
           var r = RANGE[mobs[i][2]];
           var c = colors[mobs[i][2]];
           ctx.fillStyle = ctx.strokeStyle = c;
-          if (mobs[i][2] < 8 && mobs[i][2] != 4) {
+          if (mobs[i][2] < 8) {
             ctx.fillRect(
               mobs[i][0] * size,
               (mobs[i][1] + 1) * size,
@@ -762,7 +753,7 @@
         var c = colors[mode];
         drawLOS(selected[0], selected[1], s, r, mode > 0);
         ctx.fillStyle = ctx.strokeStyle = c;
-        if (mode < 8 && mode != 4) {
+        if (mode < 8) {
           ctx.fillRect(
             selected[0] * size,
             (selected[1] + 1) * size,
@@ -795,20 +786,8 @@
           ctx.fillRect(offset, size * i, size * 9, size);
           for (var j = 0; j < tape[i].length; j++) {
             var t = tape[i][j];
-            if (i >= 3) {
-              console.log(tape[i - 3][j]);
-            }
             if (t > 0) {
-              ctx.fillStyle = [
-                "",
-                "grey",
-                "yellow",
-                "blue",
-                "purple",
-                "orange",
-                "lime",
-                "red",
-              ][t];
+              ctx.fillStyle = colors[t];
               ctx.fillRect(offset + size * j, size * i, size, size);
             }
           }
