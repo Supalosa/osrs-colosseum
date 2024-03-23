@@ -82,6 +82,7 @@
         "minotaur.png",
         "shockwave_colossus.png",
       ];
+      const MANTICORE = 4;
 
       var pillars = [
         [8, 10],
@@ -374,7 +375,7 @@
         //keyboard shortcuts for future?
       });
       function copySpawnURL() {
-        var url = "https://ifreedive-osrs.github.io/?";
+        var url = "https://fantastic-cocada-219071.netlify.app/?";
         for (var i = 0; i < mobs.length; i++) {
           if (mobs[i][2] > 0) {
             url = url
@@ -515,21 +516,12 @@
               collision | doesCollide(x, y, s, pillars[i][0], pillars[i][1], 3);
           }
         }
-        if (t != 4) {
-          for (var i = 0; i < mobs.length; i++) {
-            if (mobs[i][2] < 8) {
-              if (i != index) {
-                collision =
-                  collision |
-                  doesCollide(
-                    x,
-                    y,
-                    s,
-                    mobs[i][0],
-                    mobs[i][1],
-                    SIZE[mobs[i][2]]
-                  );
-              }
+        for (var i = 0; i < mobs.length; i++) {
+          if (mobs[i][2] < 8) {
+            if (i != index) {
+              collision =
+                collision |
+                doesCollide(x, y, s, mobs[i][0], mobs[i][1], SIZE[mobs[i][2]]);
             }
           }
         }
