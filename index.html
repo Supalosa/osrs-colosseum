@@ -273,7 +273,8 @@
       var mode = 0;
       var modeExtra = null;
       var degen = false;
-      var selected = [16, 5];
+      var b5Tile = [5, 15];
+      var selected = [...b5Tile];
       var mobs = [];
       var tape = [];
       var showSpawns = true;
@@ -693,7 +694,7 @@
       }
       function drawLOS(x, y, s, r, isNPC, color = "red") {
         if (showPlayerLoS) {
-          ctx.globalAlpha = 0.35;
+          ctx.globalAlpha = 0.2;
         } else {
           ctx.globalAlpha = 0;
         }
@@ -782,11 +783,9 @@
             -4 * size
           );
         }
-        if (showZukSpots) {
-          ctx.globalAlpha = 0.35;
-        } else {
-          ctx.globalAlpha = 0;
-        }
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = "#9F9";
+        ctx.fillRect(scale(b5Tile[0]), scale(b5Tile[1]), size, size);
         ctx.globalAlpha = 1;
         //mobs
         for (var i = 0; i < mobs.length; i++) {
