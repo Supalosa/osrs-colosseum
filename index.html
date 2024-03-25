@@ -51,6 +51,20 @@
       <button onclick="togglePlayerLoS()">LoS</button>
       <button onClick="copySpawnURL()">Copy Spawn URL</button>
     </div>
+    <div style="margin-bottom: 10px; width: 756px; text-align: center">
+      Controls: &nbsp;
+      <button
+        onclick="reset(); drawWave();"
+        title="hotkey: down or mousewheel down"
+      >
+        Reset
+      </button>
+      &nbsp;
+      <button onclick="step(); drawWave();" title="hotkey: up or mousewheel up">
+        Step &raquo;
+      </button>
+    </div>
+
     <canvas
       id="map"
       onselectstart="return false"
@@ -671,7 +685,6 @@
         }
         manticoreTicksRemaining = {};
         tape = [];
-        console.log(mobs);
       }
       function setMode(m, extra) {
         mode = m;
