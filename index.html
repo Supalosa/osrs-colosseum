@@ -66,7 +66,7 @@
     Known issues/TODO:
     <ul>
       <li>Double Manticore offticking</li>
-      <li>Manticore should stop moving during attack sequence</li>
+      <li>Collision with outside walls</li>
     </ul>
     <script>
       var SIZE = [1, 1, 3, 2, 3, 3, 3];
@@ -89,6 +89,7 @@
       const MANTICORE_RANGE_FIRST = "r";
       const MANTICORE_MAGE_FIRST = "m";
       const MANTICORE_ATTACKS = ["lime", "blue", "red"];
+      const DEFAULT_MANTICORE_MODE = MANTICORE_RANGE_FIRST;
       const MANTICORE_PATTERNS = {
         [MANTICORE_RANGE_FIRST]: [0, 1, 2],
         [MANTICORE_MAGE_FIRST]: [1, 0, 2],
@@ -276,7 +277,10 @@
       can.width = size * map_width + 9 * size;
       can.height = size * map_height;
       document.addEventListener("DOMContentLoaded", function () {
-        var spawn = parent.location.search.replace("?", "").split(".");
+        var spawn = parent.location.search
+          .replace("?", "")
+          .split(".")
+          .filter((s) => !!s);
         for (i = 0; i < spawn.length; i++) {
           if (spawn[i] === "degeN") {
             toggleNS();
@@ -284,7 +288,8 @@
             var lx = parseInt(spawn[i].slice(0, 2));
             var ly = parseInt(spawn[i].slice(2, 4));
             var lm = parseInt(spawn[i].slice(4));
-            mobs.push([lx, ly, lm, lx, ly, 0]);
+            var extra = spawn[i].slice(5) || null;
+            mobs.push([lx, ly, lm, lx, ly, 0, extra]);
           }
         }
         drawWave();
@@ -386,14 +391,21 @@
         //keyboard shortcuts for future?
       });
       function copySpawnURL() {
-        var url = "https://fantastic-cocada-219071.netlify.app/?";
+        console.log(window.location);
+        var url = `${window.location.protocol}//${window.location.host}/?`;
+        if (window.location.protocol === "file:") {
+          url = `${window.location.protocol}//${window.location.pathname}?`;
+        }
         for (var i = 0; i < mobs.length; i++) {
           if (mobs[i][2] > 0) {
             url = url
               .concat(("00" + mobs[i][0]).slice(-2))
               .concat(("00" + mobs[i][1]).slice(-2))
-              .concat(mobs[i][2])
-              .concat(".");
+              .concat(mobs[i][2]);
+            if (mobs[i][2] === MANTICORE) {
+              url = url.concat(mobs[i][6]);
+            }
+            url = url.concat(".");
           }
         }
         if (degen) {
@@ -431,6 +443,16 @@
               doesCollide(x, y, 1, pillars[j][0], pillars[j][1], 3) || isPillar;
           }
         }
+        /*
+        if (y >= 0 && y < blockedTileRanges.length) {
+          const ranges = blockedTileRanges[y];
+          for (var j = 0; j < ranges.length; ++j) {
+            const range = ranges[j];
+            if (x >= range[0] && x < range[1]) {
+              return true;
+            }
+          }
+        }*/
         return isPillar;
       }
       function hasLOS(x1, y1, x2, y2, s = 1, r = 1, isNPC = false) {
@@ -624,10 +646,10 @@
           }
           Object.entries(manticoreTicksRemaining).forEach(([index, ticks]) => {
             if (ticks > 0 && mobs[index]) {
-              const manticoreMode = mobs[index][6];
+              const manticoreMode = mobs[index][6] || DEFAULT_MANTICORE_MODE;
               const manticoreStyles = MANTICORE_PATTERNS[manticoreMode];
               const currentStyle = manticoreStyles[3 - ticks];
-              line[index - 1] = MANTICORE | (currentStyle << 8);
+              line[index] = MANTICORE | (currentStyle << 8);
               manticoreTicksRemaining[index] = ticks - 1;
             } else {
               delete manticoreTicksRemaining[index];
@@ -650,6 +672,7 @@
         }
         manticoreTicksRemaining = {};
         tape = [];
+        console.log(mobs);
       }
       function setMode(m, extra) {
         mode = m;
@@ -835,7 +858,6 @@
           for (var j = 0; j < tape[i].length; j++) {
             var t = tape[i][j] & 0xff;
             if (tape[i][j] > 0 && t > 0) {
-              console.log("drawing", t, tape[i][j]);
               ctx.fillStyle = colors[t];
               ctx.fillRect(offset + size * j, size * i, size, size);
             }
