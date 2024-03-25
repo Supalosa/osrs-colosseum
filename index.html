@@ -282,6 +282,9 @@
       var showZukSpots = true;
       var checker = true;
 
+      // tape selection, [start, end
+      var tapeSelectionRange = null;
+
       let manticoreTicksRemaining = {};
 
       var can = document.getElementById("map");
@@ -289,8 +292,11 @@
       var size = 20;
       var map_width = 34;
       var map_height = 34;
-      can.width = size * map_width + 9 * size;
-      can.height = size * map_height;
+      const TICKER_WIDTH = 9;
+      const CANVAS_WIDTH = size * map_width + TICKER_WIDTH * size;
+      const CANVAS_HEIGHT = size * map_height;
+      can.width = CANVAS_WIDTH;
+      can.height = CANVAS_HEIGHT;
       document.addEventListener("DOMContentLoaded", function () {
         var spawn = parent.location.search
           .replace("?", "")
@@ -335,8 +341,31 @@
               selected[1] = y;
               drawWave();
             }
+          } else if (x <= CANVAS_WIDTH && y >= 0 && y <= tape.length + 1) {
+            const tapeIndex = Math.floor(y);
+            tapeSelectionRange = [tapeIndex];
+            drawWave();
           }
         });
+
+      document.getElementById("map").addEventListener("mouseup", function (e) {
+        var x = e.offsetX;
+        var y = e.offsetY;
+        x = Math.floor(x / size);
+        y = Math.floor(y / size);
+        if (tapeSelectionRange?.length === 1) {
+          if (
+            x >= map_width &&
+            x <= CANVAS_WIDTH &&
+            y >= 0 &&
+            y <= CANVAS_HEIGHT
+          ) {
+            const endY = Math.min(y + 1, tape.length);
+            tapeSelectionRange = [tapeSelectionRange[0], endY];
+          }
+          drawWave();
+        }
+      });
       document.getElementById("map").addEventListener("dblclick", function (e) {
         var x = e.offsetX;
         var y = e.offsetY;
@@ -686,6 +715,7 @@
         }
         manticoreTicksRemaining = {};
         tape = [];
+        tapeSelectionRange = null;
       }
       function setMode(m, extra) {
         mode = m;
@@ -863,14 +893,15 @@
         }
         // ticker tape
         var offset = map_width * size;
+        const tickerStartY = (idx) => size * idx;
         for (var i = 0; i < tape.length; i++) {
           ctx.fillStyle = i % 2 == 0 ? "#ddd" : "#eee";
-          ctx.fillRect(offset, size * i, size * 9, size);
+          ctx.fillRect(offset, size * i, size * TICKER_WIDTH, size);
           for (var j = 0; j < tape[i].length; j++) {
             var t = tape[i][j] & 0xff;
             if (tape[i][j] > 0 && t > 0) {
               ctx.fillStyle = colors[t];
-              ctx.fillRect(offset + size * j, size * i, size, size);
+              ctx.fillRect(offset + size * j, tickerStartY(i), size, size);
             }
             if (t === MANTICORE) {
               const pattern = (tape[i][j] >> 8) & 0xff;
@@ -889,6 +920,24 @@
             }
           }
         }
+        // ticker tape selection
+        if (tapeSelectionRange?.length) {
+          ctx.fillStyle = "yellow";
+          ctx.globalAlpha = 0.25;
+          const tapeStartY = tapeSelectionRange[0];
+          const tapeEndY =
+            tapeSelectionRange.length >= 2
+              ? tapeSelectionRange[1]
+              : tapeStartY + 1;
+          ctx.fillRect(
+            offset,
+            tickerStartY(tapeStartY),
+            size * TICKER_WIDTH,
+            (tapeEndY - tapeStartY) * size
+          );
+          ctx.globalAlpha = 1;
+        }
+        // mobs
         for (var i = 0; i < mobs.length; i++) {
           const t = mobs[i][2];
           if (!t) {
