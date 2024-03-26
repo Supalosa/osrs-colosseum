@@ -310,6 +310,15 @@
         step();
         drawWave();
       }
+      function toggleAutoReplay() {
+        if (replayAuto) {
+          clearTimeout(replayAuto);
+          replayAuto = null;
+          drawWave();
+        } else {
+          replayAuto = setTimeout(() => doAutoTick(), 600);
+        }
+      }
 
       const MAX_EXPORT_LENGTH = 128;
 
@@ -346,11 +355,16 @@
           .split(".")
           .filter((s) => !!s);
         if (hash?.length > 0) {
-          replay = hash.map((encoded) => decodeCoordinates(parseInt(encoded)));
+          const decodeSection = (section) => {
+            const split = section.split("x");
+            const runLength = split.length > 1 ? parseInt(split[1]) : 1;
+            const coordinate = decodeCoordinates(parseInt(split[0]));
+            return Array(runLength).fill(coordinate);
+          };
+          replay = hash.flatMap((section) => decodeSection(section));
           replayTick = 0;
           selected = replay[0];
-          replayAuto = true;
-          setTimeout(() => doAutoTick(), 600);
+          replayAuto = setTimeout(() => doAutoTick(), 600);
         }
         drawWave();
       });
@@ -517,7 +531,6 @@
         );
         var mobTicks = tape.slice(tapeSelectionRange[0], upperBound);
         var playerTicks = playerTape.slice(tapeSelectionRange[0], upperBound);
-        console.log(playerTicks);
 
         const mobSpecs = mobTicks[0].map((tape, mobIdx) => [
           (tape >> 16) & 0xff,
@@ -527,8 +540,26 @@
         ]);
         var url = getSpawnUrl(mobSpecs);
         url = url.concat("#");
-        for (var i = 0; i < playerTicks.length; i++) {
-          url = url.concat(encodeCoordinate(playerTicks[i]) + ".");
+        var playerLocations = playerTicks.map(encodeCoordinate);
+        // run-length encoding
+        var last = playerLocations[0];
+        var runLength = 1;
+        for (var i = 1; i < playerLocations.length; i++) {
+          if (playerLocations[i] !== last) {
+            url = url.concat(last);
+            if (runLength > 1) {
+              url = url.concat(`x${runLength}`);
+            }
+            url = url.concat(`.`);
+            runLength = 1;
+          } else {
+            runLength++;
+          }
+          last = playerLocations[i - 1];
+        }
+        url = url.concat(last);
+        if (runLength > 1) {
+          url = url.concat(`x${runLength}`);
         }
 
         copyQ(url);
@@ -734,14 +765,9 @@
             replayTick = 0;
           }
           if (replayAuto) {
-            replayAutoButton.innerHTML = "Pause";
-            setTimeout(() => doAutoTick(), 600);
-          } else {
-            replayAutoButton.innerHTML = "Play";
+            clearTimeout(replayAuto);
+            replayAuto = setTimeout(() => doAutoTick(), 600);
           }
-          replayAutoButton.hidden = false;
-        } else {
-          replayAutoButton.hidden = true;
         }
         if (mode == 0 && mobs.length > 0) {
           var line = [];
@@ -857,14 +883,26 @@
         }
         ctx.globalAlpha = 1;
       }
-      function drawWave() {
+      function updateUi() {
+        if (replayAuto) {
+          replayAutoButton.innerHTML = "Pause";
+        } else {
+          replayAutoButton.innerHTML = "Play";
+        }
+        if (replay && replay[replayTick]) {
+          replayAutoButton.hidden = false;
+        } else {
+          replayAutoButton.hidden = true;
+        }
         copyReplayUrlButton.disabled = tapeSelectionRange?.length != 2;
         replayIndicator.innerHTML = !!replay
           ? `<strong><span style="color: #FF0000;">Replay: Tick ${
               replayTick + 1
             } / ${replay.length}</span></strong>`
           : null;
-
+      }
+      function drawWave() {
+        updateUi();
         ctx.globalAlpha = 1;
         ctx.clearRect(0, 0, can.width, can.height);
 
