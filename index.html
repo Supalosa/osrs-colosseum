@@ -350,6 +350,7 @@
             mobs.push([lx, ly, lm, lx, ly, 0, extra]);
           }
         }
+        sortMobs();
         var hash = parent.location.hash
           ?.replace("#", "")
           .split(".")
@@ -730,6 +731,11 @@
         }
         return !collision;
       }
+      function sortMobs() {
+        mobs.sort(function (a, b) {
+          return a[2] - b[2];
+        });
+      }
       function place() {
         if (mode > 0) {
           //x y mode ox oy cooldown extra
@@ -748,9 +754,7 @@
             0,
             modeExtra,
           ]);
-          mobs.sort(function (a, b) {
-            return b[2] - a[2];
-          });
+          sortMobs();
         }
         mode = 0;
         modeExtra = null;
