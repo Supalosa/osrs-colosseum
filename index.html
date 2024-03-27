@@ -329,11 +329,11 @@
       var can = document.getElementById("map");
       var ctx = can.getContext("2d");
       var size = 20;
-      var map_width = 34;
-      var map_height = 34;
+      const MAP_WIDTH = 34;
+      const MAP_HEIGHT = 34;
       const TICKER_WIDTH = 9;
-      const CANVAS_WIDTH = size * map_width + TICKER_WIDTH * size;
-      const CANVAS_HEIGHT = size * map_height;
+      const CANVAS_WIDTH = size * MAP_WIDTH + TICKER_WIDTH * size;
+      const CANVAS_HEIGHT = size * MAP_HEIGHT;
       can.width = CANVAS_WIDTH;
       can.height = CANVAS_HEIGHT;
       document.addEventListener("DOMContentLoaded", function () {
@@ -352,6 +352,7 @@
             mobs.push([lx, ly, lm, lx, ly, 0, extra]);
           }
         }
+        sortMobs();
         var hash = parent.location.hash
           ?.replace("#", "")
           .split(".")
@@ -378,7 +379,7 @@
           var selecting = false;
           x = Math.floor(x / size);
           y = Math.floor(y / size);
-          if (x < map_width) {
+          if (x < MAP_WIDTH) {
             if (replay) {
               stopReplay();
             }
@@ -413,7 +414,7 @@
         y = Math.floor(y / size);
         if (tapeSelectionRange?.length === 1) {
           if (
-            x >= map_width &&
+            x >= MAP_WIDTH &&
             x <= CANVAS_WIDTH &&
             y >= 0 &&
             y <= CANVAS_HEIGHT
@@ -429,7 +430,7 @@
         var y = e.offsetY;
         x = Math.floor(x / size);
         y = Math.floor(y / size);
-        if (x < map_width) {
+        if (x < MAP_WIDTH) {
           for (var i = 0; i < mobs.length; i++) {
             if (mobs[i][0] == x && mobs[i][1] == y) {
               mobs.splice(i, 1);
@@ -698,7 +699,7 @@
       function legalPosition(x, y, s, index) {
         var t = mobs[index][2];
 
-        if (y - (s - 1) < 0 || x + (s - 1) > 28) {
+        if (y - (s - 1) < 0 || x + (s - 1) > MAP_WIDTH) {
           return false;
         }
         var collision = false;
@@ -732,6 +733,11 @@
         }
         return !collision;
       }
+      function sortMobs() {
+        mobs.sort(function (a, b) {
+          return a[2] - b[2];
+        });
+      }
       function place() {
         if (mode > 0) {
           //x y mode ox oy cooldown extra
@@ -750,9 +756,7 @@
             0,
             modeExtra,
           ]);
-          mobs.sort(function (a, b) {
-            return b[2] - a[2];
-          });
+          sortMobs();
         }
         mode = 0;
         modeExtra = null;
@@ -791,7 +795,12 @@
                 if (doesCollide(dx, dy, s, selected[0], selected[1], 1)) {
                   dy = mob[1];
                 }
-                if (legalPosition(dx, dy, s, i)) {
+                if (
+                  legalPosition(dx, dy, s, i) &&
+                  legalPosition(dx, y, s, i) &&
+                  legalPosition(x, dy, s, i)
+                ) {
+                  // move diagonally
                   mob[0] = dx;
                   mob[1] = dy;
                 } else if (legalPosition(dx, y, s, i)) {
@@ -873,11 +882,11 @@
           ctx.globalAlpha = 0;
         }
 
-        for (var i = 0; i < map_width * map_height; i++) {
+        for (var i = 0; i < MAP_WIDTH * MAP_HEIGHT; i++) {
           ctx.fillStyle = color;
 
-          var x2 = i % map_width;
-          var y2 = Math.floor(i / map_height);
+          var x2 = i % MAP_WIDTH;
+          var y2 = Math.floor(i / MAP_HEIGHT);
 
           if (hasLOS(x, y, x2, y2, s, r, isNPC)) {
             ctx.fillRect(x2 * size, y2 * size, size, size);
@@ -931,9 +940,9 @@
         } else {
           checkerColor = "#fff";
         }
-        for (var i = 0; i < map_width * map_height; i++) {
-          const x = i % map_width;
-          const y = Math.floor(i / map_width);
+        for (var i = 0; i < MAP_WIDTH * MAP_HEIGHT; i++) {
+          const x = i % MAP_WIDTH;
+          const y = Math.floor(i / MAP_WIDTH);
           ctx.fillStyle = (i + (y % 2)) % 2 ? "#fff" : checkerColor;
           ctx.fillRect(x * size, y * size, size, size);
         }
@@ -1055,7 +1064,7 @@
           drawManticorePattern(colorPattern, selected[0], selected[1]);
         }
         // ticker tape
-        var offset = map_width * size;
+        var offset = MAP_WIDTH * size;
         const tickerStartY = (idx) => size * idx;
         for (var i = 0; i < tape.length; i++) {
           ctx.fillStyle = i % 2 == 0 ? "#ddd" : "#eee";
