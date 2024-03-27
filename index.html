@@ -515,38 +515,42 @@
       document.addEventListener("keydown", function (e) {
         //keyboard shortcuts for future?
       });
-      document.addEventListener("mousemove", function (e) {
-        // dragging
-        var x = e.offsetX;
-        var y = e.offsetY;
-        x = Math.floor(x / size);
-        y = Math.floor(y / size);
-        if (x < 0 || x >= MAP_WIDTH || y < 0 || y > MAP_HEIGHT) {
-          return;
-        }
-        var mouseIcon = "auto";
-        for (var i = 0; i < mobs.length; i++) {
-          if (doesCollide(x, y, 1, mobs[i][0], mobs[i][1], SIZE[mobs[i][2]])) {
-            mouseIcon = "move";
-            break;
+      document
+        .getElementById("map")
+        .addEventListener("mousemove", function (e) {
+          // dragging
+          var x = e.offsetX;
+          var y = e.offsetY;
+          x = Math.floor(x / size);
+          y = Math.floor(y / size);
+          if (x < 0 || x >= MAP_WIDTH || y < 0 || y > MAP_HEIGHT) {
+            return;
           }
-        }
+          var mouseIcon = "auto";
+          for (var i = 0; i < mobs.length; i++) {
+            if (
+              doesCollide(x, y, 1, mobs[i][0], mobs[i][1], SIZE[mobs[i][2]])
+            ) {
+              mouseIcon = "move";
+              break;
+            }
+          }
 
-        var can = document.getElementById("map");
-        can.style.cursor = mouseIcon;
-        if (e.buttons & 0x1) {
-          if (draggingNpcIndex !== null) {
-            mobs[draggingNpcIndex][0] = x - draggingNpcOffset[0];
-            mobs[draggingNpcIndex][1] = y - draggingNpcOffset[1];
-            mobs[draggingNpcIndex][3] = x - draggingNpcOffset[0];
-            mobs[draggingNpcIndex][4] = y - draggingNpcOffset[1];
-          } else if (mode > 0) {
-            selected[0] = x;
-            selected[1] = y;
+          var can = document.getElementById("map");
+          can.style.cursor = mouseIcon;
+          if (e.buttons & 0x1) {
+            if (draggingNpcIndex !== null) {
+              mobs[draggingNpcIndex][0] = x - draggingNpcOffset[0];
+              mobs[draggingNpcIndex][1] = y - draggingNpcOffset[1];
+              mobs[draggingNpcIndex][3] = x - draggingNpcOffset[0];
+              mobs[draggingNpcIndex][4] = y - draggingNpcOffset[1];
+            } else if (mode > 0) {
+              selected[0] = x;
+              selected[1] = y;
+            }
+            drawWave();
           }
-          drawWave();
-        }
-      });
+        });
       function getBaseUrl() {
         if (window.location.protocol === "file:") {
           return `${window.location.protocol}//${window.location.pathname}?`;
