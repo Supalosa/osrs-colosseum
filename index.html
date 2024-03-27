@@ -64,7 +64,7 @@
       Controls: &nbsp;
       <button
         onclick="reset(); drawWave();"
-        title="hotkey: down or mousewheel down"
+        title="hotkey: down or mousewheel up"
       >
         &laquo; Reset
       </button>
@@ -75,7 +75,10 @@
         hidden="true"
       ></button>
       &nbsp;
-      <button onclick="step(); drawWave();" title="hotkey: up or mousewheel up">
+      <button
+        onclick="step(); drawWave();"
+        title="hotkey: up or mousewheel down"
+      >
         Step &raquo;
       </button>
     </div>
