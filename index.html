@@ -29,7 +29,7 @@
       &nbsp;
       <button onclick="place()">Place NPC</button>
       &nbsp;
-      <button onclick="setMode(0)">Player</button>
+      <button onclick="setMode(0)" style="border-color: red">Player</button>
       &nbsp;
       <button onclick="setMode(1)" style="border-color: cyan">Serpent</button>
       &nbsp;
@@ -45,7 +45,7 @@
         Manticore (Mage)
       </button>
       &nbsp;
-      <button onclick="setMode(5)" style="border-color: red">Minotaur</button>
+      <button onclick="setMode(5)" style="border-color: brown">Minotaur</button>
       &nbsp;
       <button onclick="setMode(6)" style="border-color: blue">Shockwave</button>
     </div>
@@ -122,7 +122,7 @@
         "shockwave_colossus.png",
       ];
 
-      var colors = ["cyan", "cyan", "lime", "orange", "purple", "red", "blue"];
+      var colors = ["red", "cyan", "lime", "orange", "purple", "brown", "blue"];
 
       var img_sources_north = img_sources;
       const MANTICORE = 4;
@@ -439,10 +439,10 @@
             const endY = Math.min(y + 1, tape.length);
             tapeSelectionRange = [tapeSelectionRange[0], endY];
           }
-          drawWave();
         }
         draggingNpcIndex = null;
         draggingNpcOffset = null;
+        drawWave();
       });
       document.getElementById("map").addEventListener("dblclick", function (e) {
         var x = e.offsetX;
@@ -930,7 +930,7 @@
       }
       function drawLOS(x, y, s, r, isNPC, color = "red") {
         if (showPlayerLoS) {
-          ctx.globalAlpha = 0.2;
+          ctx.globalAlpha = 0.15;
         } else {
           ctx.globalAlpha = 0;
         }
@@ -1078,10 +1078,24 @@
             );
           }
         }
+        if (draggingNpcIndex !== null) {
+          const t = mobs[draggingNpcIndex][2];
+          drawLOS(
+            mobs[draggingNpcIndex][0],
+            mobs[draggingNpcIndex][1],
+            SIZE[t],
+            RANGE[t],
+            mode > 0,
+            colors[t]
+          );
+        } else {
+          var s = SIZE[mode];
+          var r = RANGE[mode];
+          drawLOS(selected[0], selected[1], s, r, mode > 0, colors[mode]);
+        }
+        var c = colors[mode];
         var s = SIZE[mode];
         var r = RANGE[mode];
-        var c = colors[mode];
-        drawLOS(selected[0], selected[1], s, r, mode > 0);
         ctx.fillStyle = ctx.strokeStyle = c;
         if (mode < 8) {
           ctx.fillRect(
