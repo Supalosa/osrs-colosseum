@@ -528,11 +528,17 @@
             break;
           }
         }
+
         var can = document.getElementById("map");
         can.style.cursor = mouseIcon;
-        if (e.buttons & 0x1 && draggingNpcIndex !== null) {
-          mobs[draggingNpcIndex][0] = x - draggingNpcOffset[0];
-          mobs[draggingNpcIndex][1] = y - draggingNpcOffset[1];
+        if (e.buttons & 0x1) {
+          if (draggingNpcIndex !== null) {
+            mobs[draggingNpcIndex][0] = x - draggingNpcOffset[0];
+            mobs[draggingNpcIndex][1] = y - draggingNpcOffset[1];
+          } else if (mode > 0) {
+            selected[0] = x;
+            selected[1] = y;
+          }
           drawWave();
         }
       });
