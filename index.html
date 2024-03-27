@@ -24,29 +24,33 @@
     </style>
   </head>
   <body id="container">
-    <div style="margin-bottom: 10px; width: 756px; text-align: center">
+    <div style="margin-bottom: 10px; width: 800px; text-align: center">
       <button onclick="remove()">Clear</button>
       &nbsp;
       <button onclick="place()">Place NPC</button>
       &nbsp;
       <button onclick="setMode(0)">Player</button>
       &nbsp;
-      <button onclick="setMode(1)">Serpent</button>
+      <button onclick="setMode(1)" style="border-color: cyan">Serpent</button>
       &nbsp;
-      <button onclick="setMode(2)">Javelin</button>
+      <button onclick="setMode(2)" style="border-color: lime">Javelin</button>
       &nbsp;
-      <button onclick="setMode(3)">Jaguar</button>
+      <button onclick="setMode(3)" style="border-color: orange">Jaguar</button>
       &nbsp;
-      <button onclick="setMode(4, 'r')">Manticore (Range)</button>
+      <button onclick="setMode(4, 'r')" style="border-color: purple">
+        Manticore (Range)
+      </button>
       &nbsp;
-      <button onclick="setMode(4, 'm')">Manticore (Mage)</button>
+      <button onclick="setMode(4, 'm')" style="border-color: purple">
+        Manticore (Mage)
+      </button>
       &nbsp;
-      <button onclick="setMode(5)">Minotaur</button>
+      <button onclick="setMode(5)" style="border-color: red">Minotaur</button>
       &nbsp;
-      <button onclick="setMode(6)">Shockwave</button>
+      <button onclick="setMode(6)" style="border-color: blue">Shockwave</button>
     </div>
-    <div style="margin-bottom: 10px; width: 756px; text-align: center">
-      (North is always top in this tool) &nbsp;&nbsp;&nbsp;Toggle: &nbsp;
+    <div style="margin-bottom: 10px; width: 800px; text-align: center">
+      Toggle: &nbsp;
       <!--<button onclick="toggleNS()">N/S</button>-->
       <button onclick="togglePlayerLoS()">LoS</button>
       <button onClick="copySpawnURL()">Copy Spawn URL</button>
@@ -61,7 +65,7 @@
       <input type="checkbox" id="delayFirstAttack" value="false" />Delay first
       attack by 3t
     </div>
-    <div style="margin-bottom: 10px; width: 756px; text-align: center">
+    <div style="margin-bottom: 10px; width: 800px; text-align: center">
       <div id="replayIndicator"></div>
       Controls: &nbsp;
       <button
@@ -1154,6 +1158,17 @@
             drawManticorePattern(colorPattern, mobs[i][0], mobs[i][1]);
           }
         }
+        ctx.font = "16px sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "top";
+        ctx.fillStyle = "red";
+        ctx.fillText("North", (MAP_WIDTH / 2) * size, 4);
+        ctx.fillStyle = "white";
+        ctx.fillText(
+          "South",
+          (MAP_WIDTH / 2) * size,
+          (MAP_HEIGHT - 1) * size + 4
+        );
       }
       function copyQ(val) {
         var container = document.getElementById("container");
