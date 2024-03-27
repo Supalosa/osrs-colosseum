@@ -58,6 +58,8 @@
       >
         Copy Replay URL
       </button>
+      <input type="checkbox" id="delayFirstAttack" value="false" />Delay first
+      attack by 3t
     </div>
     <div style="margin-bottom: 10px; width: 756px; text-align: center">
       <div id="replayIndicator"></div>
@@ -128,6 +130,8 @@
         [MANTICORE_RANGE_FIRST]: [0, 1, 2],
         [MANTICORE_MAGE_FIRST]: [1, 0, 2],
       };
+
+      const DELAY_FIRST_ATTACK_TICKS = 3;
 
       var pillars = [
         [8, 10],
@@ -306,6 +310,8 @@
       var playerTape = [];
       // tape selection, [start, end
       var tapeSelectionRange = null;
+
+      let tickCount = 0;
 
       let replay = null;
       let replayTick = null;
@@ -779,6 +785,9 @@
           }
         }
         if (mode == 0 && mobs.length > 0) {
+          const canAttack = delayFirstAttack.checked
+            ? tickCount >= DELAY_FIRST_ATTACK_TICKS
+            : true;
           var line = [];
           for (var i = 0; i < mobs.length; i++) {
             if (mobs[i][2] < 8) {
@@ -815,7 +824,10 @@
               x = mob[0];
               y = mob[1];
               //attack
-              if (hasLOS(x, y, selected[0], selected[1], s, r, true)) {
+              if (
+                canAttack &&
+                hasLOS(x, y, selected[0], selected[1], s, r, true)
+              ) {
                 if (mob[5] <= 0) {
                   if (mob[2] === MANTICORE) {
                     manticoreTicksRemaining[i] = 3;
@@ -843,6 +855,7 @@
           playerTape.push([selected[0], selected[1]]);
           tape.push(line);
         }
+        tickCount++;
       }
       function stopReplay() {
         replay = null;
@@ -868,6 +881,7 @@
         tape = [];
         playerTape = [];
         tapeSelectionRange = null;
+        tickCount = 0;
         if (replay) {
           replayTick = 0;
           selected = replay[0];
