@@ -451,8 +451,11 @@
         y = Math.floor(y / size);
         if (x < MAP_WIDTH) {
           for (var i = 0; i < mobs.length; i++) {
-            if (mobs[i][0] == x && mobs[i][1] == y) {
+            if (
+              doesCollide(x, y, 1, mobs[i][0], mobs[i][1], SIZE[mobs[i][2]])
+            ) {
               mobs.splice(i, 1);
+              break;
             }
           }
           drawWave();
@@ -1086,12 +1089,13 @@
         }
         if (draggingNpcIndex !== null) {
           const t = mobs[draggingNpcIndex][2];
+          console.log(t, SIZE[t]);
           drawLOS(
             mobs[draggingNpcIndex][0],
             mobs[draggingNpcIndex][1],
             SIZE[t],
             RANGE[t],
-            mode > 0,
+            t > 0,
             colors[t]
           );
         } else {
