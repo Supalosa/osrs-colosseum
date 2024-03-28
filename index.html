@@ -874,10 +874,11 @@
                 if (doesCollide(dx, dy, s, selected[0], selected[1], 1)) {
                   dy = mob[1];
                 }
+                // 1x1 cannot cut corners around pillars for some reason
                 if (
                   legalPosition(dx, dy, s, i) &&
-                  legalPosition(dx, y, s, i) &&
-                  legalPosition(x, dy, s, i)
+                  (s > 1 ||
+                    (legalPosition(dx, y, s, i) && legalPosition(x, dy, s, i)))
                 ) {
                   // move diagonally
                   mob[0] = dx;
