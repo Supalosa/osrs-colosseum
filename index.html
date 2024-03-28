@@ -109,10 +109,10 @@
     </p>
 
     <script>
-      var SIZE = [1, 1, 3, 2, 3, 3, 3];
-      var RANGE = [10, 10, 15, 1, 15, 1, 15];
-      var CD = [0, 5, 5, 5, 10, 5, 5];
-      var img_sources = [
+      const SIZE = [1, 1, 3, 2, 3, 3, 3];
+      const RANGE = [10, 10, 15, 1, 15, 1, 15];
+      const CD = [0, 5, 5, 5, 10, 5, 5];
+      const img_sources = [
         "",
         "serpent_shaman.png", // 10 range
         "javelin_colossus.png", // 15 range
@@ -122,9 +122,17 @@
         "shockwave_colossus.png",
       ];
 
-      var colors = ["red", "cyan", "lime", "orange", "purple", "brown", "blue"];
+      const colors = [
+        "red",
+        "cyan",
+        "lime",
+        "orange",
+        "purple",
+        "brown",
+        "blue",
+      ];
 
-      var img_sources_north = img_sources;
+      const img_sources_north = img_sources;
       const MANTICORE = 4;
       const MANTICORE_RANGE_FIRST = "r";
       const MANTICORE_MAGE_FIRST = "m";
@@ -661,7 +669,6 @@
               doesCollide(x, y, 1, pillars[j][0], pillars[j][1], 3) || isPillar;
           }
         }
-        /*
         if (y >= 0 && y < blockedTileRanges.length) {
           const ranges = blockedTileRanges[y];
           for (var j = 0; j < ranges.length; ++j) {
@@ -670,7 +677,7 @@
               return true;
             }
           }
-        }*/
+        }
         return isPillar;
       }
       function hasLOS(x1, y1, x2, y2, s = 1, r = 1, isNPC = false) {
@@ -754,25 +761,36 @@
         }
         return true;
       }
-      function legalPosition(x, y, s, index) {
-        var t = mobs[index][2];
-
-        if (y - (s - 1) < 0 || x + (s - 1) > MAP_WIDTH) {
+      function legalPosition(x, y, size, index) {
+        if (y - (size - 1) < 0 || x + (size - 1) > MAP_WIDTH) {
           return false;
         }
         var collision = false;
         for (var i = 0; i < pillars.length; i++) {
-          if (filters[i]) {
-            collision =
-              collision | doesCollide(x, y, s, pillars[i][0], pillars[i][1], 3);
+          if (
+            filters[i] &&
+            doesCollide(x, y, size, pillars[i][0], pillars[i][1], 3)
+          ) {
+            return false;
+          }
+        }
+        // test collisions with walls
+        for (var yy = y - size + 1; yy <= y; yy++) {
+          const ranges = blockedTileRanges[yy];
+          for (var j = 0; j < ranges.length; ++j) {
+            const range = ranges[j];
+            if (x + size > range[0] && x < range[1]) {
+              return false;
+            }
           }
         }
         for (var i = 0; i < mobs.length; i++) {
           if (mobs[i][2] < 8) {
-            if (i != index) {
-              collision =
-                collision |
-                doesCollide(x, y, s, mobs[i][0], mobs[i][1], SIZE[mobs[i][2]]);
+            if (
+              i != index &&
+              doesCollide(x, y, size, mobs[i][0], mobs[i][1], SIZE[mobs[i][2]])
+            ) {
+              return false;
             }
           }
         }
@@ -856,10 +874,11 @@
                 if (doesCollide(dx, dy, s, selected[0], selected[1], 1)) {
                   dy = mob[1];
                 }
+                // 1x1 cannot cut corners around pillars for some reason
                 if (
                   legalPosition(dx, dy, s, i) &&
-                  legalPosition(dx, y, s, i) &&
-                  legalPosition(x, dy, s, i)
+                  (s > 1 ||
+                    (legalPosition(dx, y, s, i) && legalPosition(x, dy, s, i)))
                 ) {
                   // move diagonally
                   mob[0] = dx;
