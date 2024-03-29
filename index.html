@@ -332,6 +332,9 @@
       let draggingNpcOffset = null;
 
       function doAutoTick() {
+        if (!replayAuto) {
+          return;
+        }
         step();
         drawWave();
       }
@@ -390,6 +393,7 @@
           replay = hash.flatMap((section) => decodeSection(section));
           replayTick = 0;
           selected = replay[0];
+          step();
           replayAuto = setTimeout(() => doAutoTick(), 600);
         }
         drawWave();
@@ -593,12 +597,15 @@
         if (tapeSelectionRange?.length != 2) {
           return;
         }
-        const upperBound = Math.min(
-          tapeSelectionRange[1],
+        const upperBoundInclusive = Math.min(
+          tapeSelectionRange[1] + 1,
           tapeSelectionRange[0] + MAX_EXPORT_LENGTH
         );
-        var mobTicks = tape.slice(tapeSelectionRange[0], upperBound);
-        var playerTicks = playerTape.slice(tapeSelectionRange[0], upperBound);
+        var mobTicks = tape.slice(tapeSelectionRange[0], upperBoundInclusive);
+        var playerTicks = playerTape.slice(
+          tapeSelectionRange[0],
+          upperBoundInclusive
+        );
 
         const mobSpecs = mobTicks[0].map((tape, mobIdx) => [
           (tape >> 16) & 0xff,
@@ -838,13 +845,13 @@
         drawWave();
       }
       function step() {
-        if (replay && replay[replayTick]) {
-          selected = replay[replayTick];
-          replayTick = replayTick + 1;
-          if (replayTick >= replay.length) {
+        if (replay) {
+          if (replay[replayTick]) {
+            selected = replay[replayTick];
+          } else {
             reset();
-            replayTick = 0;
           }
+          replayTick++;
           if (replayAuto) {
             clearTimeout(replayAuto);
             replayAuto = setTimeout(() => doAutoTick(), 600);
@@ -993,9 +1000,7 @@
         }
         copyReplayUrlButton.disabled = tapeSelectionRange?.length != 2;
         replayIndicator.innerHTML = !!replay
-          ? `<strong><span style="color: #FF0000;">Replay: Tick ${
-              replayTick + 1
-            } / ${replay.length}</span></strong>`
+          ? `<strong><span style="color: #FF0000;">Replay: Tick ${replayTick} / ${replay.length}</span></strong>`
           : null;
       }
       function drawWave() {
