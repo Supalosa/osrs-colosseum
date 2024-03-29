@@ -88,7 +88,6 @@
         Step &raquo;
       </button>
     </div>
-
     <canvas
       id="map"
       onselectstart="return false"
@@ -624,7 +623,7 @@
           } else {
             runLength++;
           }
-          last = playerLocations[i - 1];
+          last = playerLocations[i];
         }
         url = url.concat(last);
         if (runLength > 1) {
