@@ -39,7 +39,21 @@ var pillars = [
 var filters = [true, true, true, true];
 var south = false;
 
-var spawns: Coordinates[] = [];
+var spawns: Coordinates[] = [
+  [3, 19],
+  [9, 17],
+  [3, 14],
+  [13, 14],
+  [16, 13],
+  [19, 14],
+  [17, 9],
+  [13, 20],
+  [19, 20],
+  [16, 24],
+  [24, 16],
+  [28, 14],
+  [28, 19],
+];
 
 var mode = 0;
 // only used for manticore at the moment
@@ -841,8 +855,8 @@ function drawWave() {
     ctx.fillRect(
       spawns[i][0] * size,
       (spawns[i][1] + 1) * size,
-      4 * size,
-      -4 * size
+      3 * size,
+      -3 * size
     );
   }
   ctx.globalAlpha = 1;
