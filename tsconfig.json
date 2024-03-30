@@ -15,7 +15,7 @@
 
     /* Linting */
     "strict": true,
-    "noUnusedLocals": true,
+    "noUnusedLocals": false /* changed from true to make it easier to bring inferno mode back */,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },

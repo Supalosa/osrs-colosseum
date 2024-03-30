@@ -276,9 +276,6 @@ document.addEventListener("keydown", function (e) {
       break;
   }
 });
-document.addEventListener("keydown", function (e) {
-  //keyboard shortcuts for future?
-});
 mapElement.addEventListener("mousemove", function (e) {
   // dragging
   var x = e.offsetX;

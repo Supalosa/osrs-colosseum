@@ -24,6 +24,7 @@
     </style>
   </head>
   <body id="container">
+    <script type="module" src="/src/main.ts"></script>
     <div style="margin-bottom: 10px; width: 800px; text-align: center">
       <button onclick="remove()">Clear</button>
       &nbsp;
@@ -92,7 +93,7 @@
       id="map"
       onselectstart="return false"
       oncontextmenu="return false"
-    />
+    ></canvas>
     <p style="font-size: 12px">
       Based on
       <a href="https://ifreedive-osrs.github.io/">ifreedive's tool</a> which is
@@ -105,6 +106,5 @@
         >[Issue tracker]</a
       >
     </p>
-    <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
