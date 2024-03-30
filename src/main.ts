@@ -17,7 +17,7 @@ const img_sources = [
 const colors = ["red", "cyan", "lime", "orange", "purple", "brown", "blue"];
 
 const img_sources_north = img_sources;
-const MANTICORE = 4;
+export const MANTICORE = 4;
 const MANTICORE_RANGE_FIRST = "r";
 const MANTICORE_MAGE_FIRST = "m";
 const MANTICORE_ATTACKS = ["lime", "blue", "red"];
@@ -290,7 +290,7 @@ document.addEventListener("keydown", function (e) {
       break;
   }
 });
-mapElement.addEventListener("mousemove", function (e) {
+mapElement?.addEventListener("mousemove", function (e) {
   // dragging
   var x = e.offsetX;
   var y = e.offsetY;
@@ -327,7 +327,7 @@ function getBaseUrl() {
   }
   return `${window.location.protocol}//${window.location.host}/?`;
 }
-function getSpawnUrl(mobSpecs: MobSpec[]) {
+export function getSpawnUrl(mobSpecs: MobSpec[]) {
   var url = getBaseUrl();
   mobSpecs.forEach(([locationX, locationY, mobType, extra]) => {
     url = url
@@ -354,9 +354,9 @@ function copySpawnURL() {
   copyQ(url);
   alert("Spawn URL Copied!");
 }
-function copyReplayURL() {
+export function copyReplayURL() {
   if (tapeSelectionRange?.length != 2) {
-    return;
+    return null;
   }
   const upperBoundInclusive = Math.min(
     tapeSelectionRange[1] + 1,
@@ -368,15 +368,22 @@ function copyReplayURL() {
     upperBoundInclusive
   );
 
+  // get the mob positions/specs at the start of the selection
   const mobSpecs = mobTicks[0].map(
-    (tape, mobIdx) =>
+    (value, mobIdx) =>
       [
-        (tape >> 16) & 0xff,
-        (tape >> 24) & 0xff,
+        (value >> 16) & 0xff,
+        (value >> 24) & 0xff,
         mobs[mobIdx][2],
         mobs[mobIdx][6],
       ] as MobSpec
   );
+  var url = getReplayURL(mobSpecs, playerTicks);
+  copyQ(url);
+  alert("Replay URL Copied!");
+}
+
+export function getReplayURL(mobSpecs: MobSpec[], playerTicks: Coordinates[]) {
   var url = getSpawnUrl(mobSpecs);
   url = url.concat("#");
   var playerLocations = playerTicks.map(encodeCoordinate);
@@ -400,9 +407,7 @@ function copyReplayURL() {
   if (runLength > 1) {
     url = url.concat(`x${runLength}`);
   }
-
-  copyQ(url);
-  alert("Replay URL Copied!");
+  return url;
 }
 function encodeCoordinate(coords: Coordinates) {
   return (coords[0] & 0xff) | ((coords[1] & 0xff) << 8);
@@ -691,7 +696,8 @@ function step() {
         const manticoreMode = mobs[index][6] || DEFAULT_MANTICORE_MODE;
         const manticoreStyles = MANTICORE_PATTERNS[manticoreMode];
         const currentStyle = manticoreStyles[3 - ticks];
-        line[index] = 1 | (currentStyle << 8);
+        const prevLine = line[index];
+        line[index] = 1 | (currentStyle << 8) | (prevLine & 0xffff0000);
         manticoreTicksRemaining[index] = ticks - 1;
       } else {
         delete manticoreTicksRemaining[index];
