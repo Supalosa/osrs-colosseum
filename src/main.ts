@@ -598,7 +598,7 @@ function sortMobs() {
     return a[2] - b[2];
   });
 }
-function place() {
+export function place() {
   if (mode > 0) {
     //x y mode ox oy cooldown extra
     //prevent 2 mobs on same tile
@@ -622,7 +622,7 @@ function place() {
   modeExtra = null;
   drawWave();
 }
-function step() {
+export function step() {
   if (replay && replayTick !== null) {
     if (replay[replayTick]) {
       selected = replay[replayTick];
@@ -722,7 +722,8 @@ function remove() {
   reset();
   drawWave();
 }
-function reset() {
+
+export function reset() {
   for (var i = 0; i < mobs.length; i++) {
     mobs[i][0] = mobs[i][3];
     mobs[i][1] = mobs[i][4];
@@ -740,11 +741,13 @@ function reset() {
   draggingNpcIndex = null;
   draggingNpcOffset = null;
 }
-function setMode(m: number, extra?: MobExtra) {
+
+export function setMode(m: number, extra?: MobExtra) {
   mode = m;
   modeExtra = extra ?? null;
   drawWave();
 }
+
 function drawLOS(
   x: number,
   y: number,
@@ -1047,6 +1050,21 @@ function copyQ(val: string) {
   inp.select();
   document.execCommand("Copy");
   container.removeChild(container.lastChild!);
+}
+
+// exposed for testing
+export function _setSelected(
+  s: Coordinates,
+  _mode: number,
+  _extra: MobExtra | null = null
+) {
+  selected = s;
+  mode = _mode;
+  modeExtra = _extra;
+}
+
+export function _getMobs() {
+  return mobs;
 }
 
 // make these available to the buttons (not how I'd choose to do this...)

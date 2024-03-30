@@ -11,3 +11,9 @@ Originally written by [Backseat](https://bistools.github.io/inferno.html) and [i
 ## Development
 
     npm run dev
+
+Then navigate to https://localhost:5173
+
+## Testing
+
+    npm run test
