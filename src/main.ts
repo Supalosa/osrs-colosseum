@@ -354,7 +354,7 @@ function copySpawnURL() {
   copyQ(url);
   alert("Spawn URL Copied!");
 }
-export function copyReplayURL(copy = true) {
+export function copyReplayURL() {
   if (tapeSelectionRange?.length != 2) {
     return null;
   }
