@@ -1,3 +1,6 @@
+import { Coordinates, Mob, MobExtra, MobSpec, TapeEntry } from "./types";
+import { blockedTileRanges } from "./constants";
+
 const SIZE = [1, 1, 3, 2, 3, 3, 3];
 const RANGE = [10, 10, 15, 1, 15, 1, 15];
 const CD = [0, 5, 5, 5, 10, 5, 5];
@@ -19,7 +22,8 @@ const MANTICORE_RANGE_FIRST = "r";
 const MANTICORE_MAGE_FIRST = "m";
 const MANTICORE_ATTACKS = ["lime", "blue", "red"];
 const DEFAULT_MANTICORE_MODE = MANTICORE_RANGE_FIRST;
-const MANTICORE_PATTERNS = {
+// values are indexes into MANTICORE_ATTACKS
+const MANTICORE_PATTERNS: { [patternName: string]: number[] } = {
   [MANTICORE_RANGE_FIRST]: [0, 1, 2],
   [MANTICORE_MAGE_FIRST]: [1, 0, 2],
 };
@@ -35,183 +39,34 @@ var pillars = [
 var filters = [true, true, true, true];
 var south = false;
 
-var spawns = [];
-
-// each entry represents the spans across the x axis for that a corresponding y value
-const blockedTileRanges = [
-  [
-    [0, 13],
-    [15, 19], // door
-    [21, 34],
-  ],
-
-  [
-    [0, 9],
-    [25, 34],
-  ], // 1
-
-  [
-    [0, 7],
-    [27, 34],
-  ], // 2
-
-  [
-    [0, 6],
-    [29, 34],
-  ], // 3
-
-  [
-    [0, 5],
-    [29, 34],
-  ], // 4
-
-  [
-    [0, 4],
-    [31, 34],
-  ], // 5
-
-  [
-    [0, 3],
-    [31, 34],
-  ], // 6
-
-  [
-    [0, 2],
-    [32, 34],
-  ], // 7
-
-  [
-    [0, 2],
-    [32, 34],
-  ], // 8
-
-  [
-    [0, 1],
-    [33, 34],
-  ], // 9
-  [
-    [0, 1],
-    [33, 34],
-  ], // 10
-
-  [
-    [0, 1],
-    [32, 34],
-  ],
-  [
-    [0, 1],
-    [31, 34],
-  ],
-
-  [[31, 34]],
-  [[31, 34]],
-
-  [
-    [0, 1],
-    [31, 34],
-  ],
-  [
-    [0, 1],
-    [31, 34],
-  ],
-  [
-    [0, 1],
-    [31, 34],
-  ],
-  [
-    [0, 1],
-    [31, 34],
-  ],
-
-  [[31, 34]],
-  [[31, 34]],
-
-  [
-    [0, 1],
-    [31, 34],
-  ],
-  [
-    [0, 1],
-    [32, 34],
-  ],
-  [
-    [0, 1],
-    [33, 34],
-  ],
-  [
-    [0, 1],
-    [33, 34],
-  ],
-
-  [
-    [0, 2],
-    [32, 34],
-  ],
-  [
-    [0, 2],
-    [32, 34],
-  ],
-
-  [
-    [0, 3],
-    [31, 34],
-  ],
-  [
-    [0, 3],
-    [31, 34],
-  ],
-
-  [
-    [0, 5],
-    [29, 34],
-  ],
-  [
-    [0, 5],
-    [29, 34],
-  ],
-
-  [
-    [0, 7],
-    [27, 34],
-  ],
-
-  [
-    [0, 9],
-    [25, 34],
-  ],
-
-  [
-    [0, 13],
-    [15, 19], // door
-    [21, 34],
-  ],
-];
+var spawns: Coordinates[] = [];
 
 var mode = 0;
-var modeExtra = null;
+// only used for manticore at the moment
+var modeExtra: MobExtra = null;
 var degen = false;
 var b5Tile = [5, 15];
 var selected = [...b5Tile];
-var mobs = [];
+var mobs: Mob[] = [];
 var showSpawns = true;
 var showPlayerLoS = true;
 var showZukSpots = true;
 var checker = true;
 
 // tape for mobs
-var tape = [];
-var playerTape = [];
+var tape: TapeEntry[] = [];
+var playerTape: Coordinates[] = [];
 // tape selection, [start, end
 var tapeSelectionRange = null;
 
 let tickCount = 0;
 
-let replay = null;
-let replayTick = null;
-let replayAuto = null;
+let replay: Coordinates[] | null = null;
+let replayTick: number | null = null;
+let replayAuto: number | null = null;
 
-let draggingNpcIndex = null;
-let draggingNpcOffset = null;
+let draggingNpcIndex: number | null = null;
+let draggingNpcOffset: Coordinates | null = null;
 
 function doAutoTick() {
   if (!replayAuto) {
@@ -232,9 +87,16 @@ function toggleAutoReplay() {
 
 const MAX_EXPORT_LENGTH = 128;
 
-let manticoreTicksRemaining = {};
+let manticoreTicksRemaining: { [mobIndex: number]: number } = {};
 
-var can: HTMLCanvasElement | null = null;
+let mapElement: HTMLCanvasElement | null = <HTMLCanvasElement>(
+  document.getElementById("map")
+);
+let delayFirstAttack: HTMLInputElement | null = null;
+let replayAutoButton: HTMLButtonElement | null = null;
+let copyReplayUrlButton: HTMLButtonElement | null = null;
+let replayIndicator: HTMLDivElement | null = null;
+
 var ctx: CanvasRenderingContext2D | null = null;
 var size = 20;
 const MAP_WIDTH = 34;
@@ -244,10 +106,23 @@ const CANVAS_WIDTH = size * MAP_WIDTH + TICKER_WIDTH * size;
 const CANVAS_HEIGHT = size * MAP_HEIGHT;
 
 function initDOM() {
-  can = <HTMLCanvasElement>document.getElementById("map");
-  ctx = can.getContext("2d");
-  can.width = CANVAS_WIDTH;
-  can.height = CANVAS_HEIGHT;
+  mapElement = document.getElementById("map") as HTMLCanvasElement;
+  ctx = mapElement.getContext("2d");
+  mapElement.width = CANVAS_WIDTH;
+  mapElement.height = CANVAS_HEIGHT;
+  delayFirstAttack = document.getElementById(
+    "delayFirstAttack"
+  ) as HTMLInputElement;
+  replayAutoButton = document.getElementById(
+    "replayAutoButton"
+  ) as HTMLButtonElement;
+  copyReplayUrlButton = document.getElementById(
+    "copyReplayUrlButton"
+  ) as HTMLButtonElement;
+  replayIndicator = document.getElementById(
+    "replayIndicator"
+  ) as HTMLDivElement;
+  return mapElement;
 }
 
 document.addEventListener("DOMContentLoaded", function () {
@@ -264,7 +139,7 @@ document.addEventListener("DOMContentLoaded", function () {
       var ly = parseInt(spawn[i].slice(2, 4));
       var lm = parseInt(spawn[i].slice(4));
       var extra = spawn[i].slice(5) || null;
-      mobs.push([lx, ly, lm, lx, ly, 0, extra]);
+      mobs.push([lx, ly, lm, lx, ly, 0, extra as MobExtra]);
     }
   }
   sortMobs();
@@ -273,7 +148,7 @@ document.addEventListener("DOMContentLoaded", function () {
     .split(".")
     .filter((s) => !!s);
   if (hash?.length > 0) {
-    const decodeSection = (section) => {
+    const decodeSection = (section: string) => {
       const split = section.split("x");
       const runLength = split.length > 1 ? parseInt(split[1]) : 1;
       const coordinate = decodeCoordinates(parseInt(split[0]));
@@ -287,7 +162,7 @@ document.addEventListener("DOMContentLoaded", function () {
   }
   drawWave();
 });
-document.getElementById("map").addEventListener("mousedown", function (e) {
+mapElement?.addEventListener("mousedown", function (e) {
   var x = e.offsetX;
   var y = e.offsetY;
   var selectedNpcIndex = null;
@@ -320,7 +195,7 @@ document.getElementById("map").addEventListener("mousedown", function (e) {
   }
   drawWave();
 });
-document.getElementById("map").addEventListener("mouseup", function (e) {
+mapElement?.addEventListener("mouseup", function (e) {
   var x = e.offsetX;
   var y = e.offsetY;
   x = Math.floor(x / size);
@@ -335,7 +210,7 @@ document.getElementById("map").addEventListener("mouseup", function (e) {
   draggingNpcOffset = null;
   drawWave();
 });
-document.getElementById("map").addEventListener("dblclick", function (e) {
+mapElement?.addEventListener("dblclick", function (e) {
   var x = e.offsetX;
   var y = e.offsetY;
   x = Math.floor(x / size);
@@ -350,7 +225,7 @@ document.getElementById("map").addEventListener("dblclick", function (e) {
     drawWave();
   }
 });
-document.getElementById("map").addEventListener("wheel", function (e) {
+mapElement?.addEventListener("wheel", function (e) {
   if (e.deltaY > 0) {
     step();
     drawWave();
@@ -404,7 +279,7 @@ document.addEventListener("keydown", function (e) {
 document.addEventListener("keydown", function (e) {
   //keyboard shortcuts for future?
 });
-document.getElementById("map").addEventListener("mousemove", function (e) {
+mapElement.addEventListener("mousemove", function (e) {
   // dragging
   var x = e.offsetX;
   var y = e.offsetY;
@@ -421,10 +296,9 @@ document.getElementById("map").addEventListener("mousemove", function (e) {
     }
   }
 
-  var can = document.getElementById("map");
-  can.style.cursor = mouseIcon;
+  mapElement!.style.cursor = mouseIcon;
   if (e.buttons & 0x1) {
-    if (draggingNpcIndex !== null) {
+    if (draggingNpcIndex !== null && draggingNpcOffset !== null) {
       mobs[draggingNpcIndex][0] = x - draggingNpcOffset[0];
       mobs[draggingNpcIndex][1] = y - draggingNpcOffset[1];
       mobs[draggingNpcIndex][3] = x - draggingNpcOffset[0];
@@ -442,15 +316,15 @@ function getBaseUrl() {
   }
   return `${window.location.protocol}//${window.location.host}/?`;
 }
-function getSpawnUrl(mobSpecs) {
+function getSpawnUrl(mobSpecs: MobSpec[]) {
   var url = getBaseUrl();
   mobSpecs.forEach(([locationX, locationY, mobType, extra]) => {
     url = url
       .concat(("00" + locationX).slice(-2))
       .concat(("00" + locationY).slice(-2))
-      .concat(mobType);
-    if (mobType === MANTICORE) {
-      url = url.concat(extra);
+      .concat(mobType.toString());
+    if (mobType === MANTICORE && !!extra) {
+      url = url.concat(extra.toString());
     }
     url = url.concat(".");
   });
@@ -459,10 +333,12 @@ function getSpawnUrl(mobSpecs) {
   }
   return url;
 }
+
+const getMobSpec = (mob: Mob): MobSpec =>
+  [mob[0], mob[1], mob[2], mob[6]] as MobSpec;
+
 function copySpawnURL() {
-  const mobSpecs = mobs
-    .filter((mob) => mob[2] > 0)
-    .map((mob) => [mob[0], mob[1], mob[2], mob[6]]);
+  const mobSpecs = mobs.filter((mob) => mob[2] > 0).map(getMobSpec);
   var url = getSpawnUrl(mobSpecs);
   copyQ(url);
   alert("Spawn URL Copied!");
@@ -481,12 +357,15 @@ function copyReplayURL() {
     upperBoundInclusive
   );
 
-  const mobSpecs = mobTicks[0].map((tape, mobIdx) => [
-    (tape >> 16) & 0xff,
-    (tape >> 24) & 0xff,
-    mobs[mobIdx][2],
-    mobs[mobIdx][6],
-  ]);
+  const mobSpecs = mobTicks[0].map(
+    (tape, mobIdx) =>
+      [
+        (tape >> 16) & 0xff,
+        (tape >> 24) & 0xff,
+        mobs[mobIdx][2],
+        mobs[mobIdx][6],
+      ] as MobSpec
+  );
   var url = getSpawnUrl(mobSpecs);
   url = url.concat("#");
   var playerLocations = playerTicks.map(encodeCoordinate);
@@ -495,7 +374,7 @@ function copyReplayURL() {
   var runLength = 1;
   for (var i = 1; i < playerLocations.length; i++) {
     if (playerLocations[i] !== last) {
-      url = url.concat(last);
+      url = url.concat(last.toString());
       if (runLength > 1) {
         url = url.concat(`x${runLength}`);
       }
@@ -506,7 +385,7 @@ function copyReplayURL() {
     }
     last = playerLocations[i];
   }
-  url = url.concat(last);
+  url = url.concat(last.toString());
   if (runLength > 1) {
     url = url.concat(`x${runLength}`);
   }
@@ -514,10 +393,10 @@ function copyReplayURL() {
   copyQ(url);
   alert("Replay URL Copied!");
 }
-function encodeCoordinate(coords) {
+function encodeCoordinate(coords: Coordinates) {
   return (coords[0] & 0xff) | ((coords[1] & 0xff) << 8);
 }
-function decodeCoordinates(coords) {
+function decodeCoordinates(coords: number): Coordinates {
   return [coords & 0xff, (coords >> 8) & 0xff];
 }
 function toggleSpawns() {
@@ -533,7 +412,7 @@ function toggleZukSpots() {
   drawWave();
 }
 function toggleNS() {
-  document.getElementById("map").classList.toggle("south");
+  mapElement?.classList.toggle("south");
   degen = !degen;
   drawWave();
 }
@@ -541,7 +420,7 @@ function toggleChecker() {
   checker = !checker;
   drawWave();
 }
-function isPillar(x, y) {
+function isPillar(x: number, y: number) {
   var isPillar = false;
   for (var j = 0; j < pillars.length; j++) {
     if (filters[j]) {
@@ -560,7 +439,15 @@ function isPillar(x, y) {
   }
   return isPillar;
 }
-function hasLOS(x1, y1, x2, y2, s = 1, r = 1, isNPC = false) {
+function hasLOS(
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  s = 1,
+  r = 1,
+  isNPC = false
+) {
   let dx = x2 - x1;
   let dy = y2 - y1;
   if (
@@ -630,13 +517,20 @@ function hasLOS(x1, y1, x2, y2, s = 1, r = 1, isNPC = false) {
   }
   return true;
 }
-function doesCollide(x, y, s, x2, y2, s2) {
+function doesCollide(
+  x: number,
+  y: number,
+  s: number,
+  x2: number,
+  y2: number,
+  s2: number
+) {
   if (x > x2 + s2 - 1 || x + s - 1 < x2 || y - s + 1 > y2 || y < y2 - s2 + 1) {
     return false;
   }
   return true;
 }
-function legalPosition(x, y, size, index) {
+function legalPosition(x: number, y: number, size: number, index: number) {
   if (y - (size - 1) < 0 || x + (size - 1) > MAP_WIDTH) {
     return false;
   }
@@ -671,15 +565,14 @@ function legalPosition(x, y, size, index) {
   }
   return !collision;
 }
-function digPosition(x, y) {
+function digPosition(x: number, y: number) {
   if (y - 3 < 0 || x + 3 > 28 || x < 0 || y > 29) {
     return false;
   }
   var collision = false;
   for (var i = 0; i < pillars.length; i++) {
-    if (filters[i]) {
-      collision =
-        collision | doesCollide(x, y, 4, pillars[i][0], pillars[i][1], 3);
+    if (filters[i] && doesCollide(x, y, 4, pillars[i][0], pillars[i][1], 3)) {
+      return false;
     }
   }
   return !collision;
@@ -714,7 +607,7 @@ function place() {
   drawWave();
 }
 function step() {
-  if (replay) {
+  if (replay && replayTick !== null) {
     if (replay[replayTick]) {
       selected = replay[replayTick];
     } else {
@@ -727,10 +620,10 @@ function step() {
     }
   }
   if (mode == 0 && mobs.length > 0) {
-    const canAttack = delayFirstAttack.checked
+    const canAttack = delayFirstAttack?.checked
       ? tickCount >= DELAY_FIRST_ATTACK_TICKS
       : true;
-    var line = [];
+    var line: TapeEntry = [];
     for (var i = 0; i < mobs.length; i++) {
       if (mobs[i][2] < 8) {
         var mob = mobs[i];
@@ -740,7 +633,7 @@ function step() {
         var t = mob[2];
         var s = SIZE[t];
         var r = RANGE[t];
-        var attacked = false;
+        var attacked = 0;
         //move
         if (!hasLOS(x, y, selected[0], selected[1], s, r, true)) {
           var dx = x + Math.sign(selected[0] - x);
@@ -772,7 +665,7 @@ function step() {
             if (mob[2] === MANTICORE) {
               manticoreTicksRemaining[i] = 3;
             }
-            attacked = true;
+            attacked = 1;
             mob[5] = CD[t];
           }
         }
@@ -781,12 +674,13 @@ function step() {
         line.push(value);
       }
     }
-    Object.entries(manticoreTicksRemaining).forEach(([index, ticks]) => {
+    Object.entries(manticoreTicksRemaining).forEach(([idx, ticks]) => {
+      const index = Number(idx);
       if (ticks > 0 && mobs[index]) {
         const manticoreMode = mobs[index][6] || DEFAULT_MANTICORE_MODE;
         const manticoreStyles = MANTICORE_PATTERNS[manticoreMode];
         const currentStyle = manticoreStyles[3 - ticks];
-        line[index] = true | (currentStyle << 8);
+        line[index] = 1 | (currentStyle << 8);
         manticoreTicksRemaining[index] = ticks - 1;
       } else {
         delete manticoreTicksRemaining[index];
@@ -804,10 +698,10 @@ function stopReplay() {
 function remove() {
   mobs = [];
   stopReplay();
-  const url = new URL(window.location);
+  const url = new URL(window.location.href);
   url.search = "";
   url.hash = "";
-  window.location = url.toString();
+  window.location.href = url.toString();
   reset();
   drawWave();
 }
@@ -829,12 +723,22 @@ function reset() {
   draggingNpcIndex = null;
   draggingNpcOffset = null;
 }
-function setMode(m, extra) {
+function setMode(m: number, extra?: MobExtra) {
   mode = m;
-  modeExtra = extra;
+  modeExtra = extra ?? null;
   drawWave();
 }
-function drawLOS(x, y, s, r, isNPC, color = "red") {
+function drawLOS(
+  x: number,
+  y: number,
+  s: number,
+  r: number,
+  isNPC: boolean,
+  color = "red"
+) {
+  if (!ctx) {
+    return;
+  }
   if (showPlayerLoS) {
     ctx.globalAlpha = 0.15;
   } else {
@@ -854,12 +758,15 @@ function drawLOS(x, y, s, r, isNPC, color = "red") {
   ctx.globalAlpha = 1;
 }
 function updateUi() {
+  if (!replayAutoButton || !copyReplayUrlButton || !replayIndicator) {
+    return;
+  }
   if (replayAuto) {
     replayAutoButton.innerHTML = "Pause";
   } else {
     replayAutoButton.innerHTML = "Play";
   }
-  if (replay && replay[replayTick]) {
+  if (replay && replayTick !== null && replay[replayTick]) {
     replayAutoButton.hidden = false;
   } else {
     replayAutoButton.hidden = true;
@@ -867,16 +774,22 @@ function updateUi() {
   copyReplayUrlButton.disabled = tapeSelectionRange?.length != 2;
   replayIndicator.innerHTML = !!replay
     ? `<strong><span style="color: #FF0000;">Replay: Tick ${replayTick} / ${replay.length}</span></strong>`
-    : null;
+    : "";
 }
 function drawWave() {
   updateUi();
+  if (!ctx || !mapElement) {
+    return;
+  }
   ctx.globalAlpha = 1;
-  ctx.clearRect(0, 0, can.width, can.height);
+  ctx.clearRect(0, 0, mapElement.width, mapElement.height);
 
-  const scale = (p) => p * size;
-  function drawManticorePattern(pattern, x, y) {
+  const scale = (p: number) => p * size;
+  function drawManticorePattern(pattern: number[], x: number, y: number) {
     pattern.forEach((colorIndex, index) => {
+      if (!ctx) {
+        return;
+      }
       const color = MANTICORE_ATTACKS[colorIndex];
       ctx.strokeStyle = color;
       ctx.fillStyle = color;
@@ -897,6 +810,9 @@ function drawWave() {
   ctx.fillStyle = "#000";
   blockedTileRanges.forEach((ranges, y) => {
     ranges.forEach((range) => {
+      if (!ctx) {
+        return;
+      }
       ctx.fillRect(
         scale(range[0]),
         scale(y),
@@ -1007,7 +923,7 @@ function drawWave() {
   }
   var current_i = new Image();
   if (mode > 0) {
-    if (document.getElementById("map").classList.contains("south")) {
+    if (mapElement.classList.contains("south")) {
       current_i.src = img_sources[mode];
     } else {
       current_i.src = img_sources_north[mode];
@@ -1026,7 +942,7 @@ function drawWave() {
   }
   // ticker tape
   var offset = MAP_WIDTH * size;
-  const tickerStartY = (idx) => size * idx;
+  const tickerStartY = (idx: number) => size * idx;
   for (var i = 0; i < tape.length; i++) {
     ctx.fillStyle = i % 2 == 0 ? "#ddd" : "#eee";
     ctx.fillRect(offset, size * i, size * TICKER_WIDTH, size);
@@ -1078,7 +994,7 @@ function drawWave() {
       continue;
     }
     var mob_i = new Image();
-    if (document.getElementById("map").classList.contains("south")) {
+    if (mapElement.classList.contains("south")) {
       mob_i.src = img_sources[t];
     } else {
       mob_i.src = img_sources_north[t];
@@ -1090,8 +1006,8 @@ function drawWave() {
       SIZE[mobs[i][2]] * size,
       SIZE[mobs[i][2]] * size
     );
-    if (t === MANTICORE) {
-      const mobExtra = mobs[i][6];
+    const mobExtra = mobs[i][6];
+    if (t === MANTICORE && mobExtra !== null) {
       const colorPattern = MANTICORE_PATTERNS[mobExtra];
       drawManticorePattern(colorPattern, mobs[i][0], mobs[i][1]);
     }
@@ -1105,18 +1021,32 @@ function drawWave() {
   ctx.fillText("South", (MAP_WIDTH / 2) * size, (MAP_HEIGHT - 1) * size + 4);
 }
 
-function copyQ(val) {
-  var container = document.getElementById("container");
+function copyQ(val: string) {
+  var container = document.getElementById("container")!;
   var inp = document.createElement("input");
   inp.type = "text";
   container.appendChild(inp);
   inp.value = val;
   inp.select();
   document.execCommand("Copy");
-  container.removeChild(container.lastChild);
+  container.removeChild(container.lastChild!);
 }
 
 // make these available to the buttons (not how I'd choose to do this...)
+declare global {
+  interface Window {
+    remove: typeof remove;
+    setMode: typeof setMode;
+    place: typeof place;
+    togglePlayerLoS: typeof togglePlayerLoS;
+    copySpawnURL: typeof copySpawnURL;
+    copyReplayURL: typeof copyReplayURL;
+    step: typeof step;
+    reset: typeof reset;
+    drawWave: typeof drawWave;
+    toggleAutoReplay: typeof toggleAutoReplay;
+  }
+}
 window.remove = remove;
 window.setMode = setMode;
 window.place = place;
@@ -1126,3 +1056,4 @@ window.copyReplayURL = copyReplayURL;
 window.step = step;
 window.reset = reset;
 window.drawWave = drawWave;
+window.toggleAutoReplay = toggleAutoReplay;
