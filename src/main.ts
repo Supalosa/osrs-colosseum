@@ -30,6 +30,7 @@ const MANTICORE_PATTERNS: { [patternName: string]: number[] } = {
 
 const MINOTAUR = 5;
 const MINOTAUR_HEAL_RANGE = 7;
+const MINOTAUR_HEAL_COLOR = "purple";
 
 const DELAY_FIRST_ATTACK_TICKS = 3;
 
@@ -924,7 +925,7 @@ function drawWave() {
     );
     // draw minotaur line-of-sight (from center tile as if it were a player)
     if (t === MINOTAUR) {
-      drawLOS(mobs[draggingNpcIndex][0] + 1, mobs[draggingNpcIndex][1] - 1, 1, MINOTAUR_HEAL_RANGE, false, colors[MINOTAUR])
+      drawLOS(mobs[draggingNpcIndex][0] + 1, mobs[draggingNpcIndex][1] - 1, 1, MINOTAUR_HEAL_RANGE, false, MINOTAUR_HEAL_COLOR)
     }
   } else {
     var s = SIZE[mode];
@@ -933,7 +934,7 @@ function drawWave() {
     
     // draw minotaur line-of-sight (from center tile as if it were a player)
     if (mode === MINOTAUR) {
-      drawLOS(selected[0] + 1, selected[1] - 1, 1, MINOTAUR_HEAL_RANGE, false, colors[MINOTAUR])
+      drawLOS(selected[0] + 1, selected[1] - 1, 1, MINOTAUR_HEAL_RANGE, false, MINOTAUR_HEAL_COLOR)
     }
   }
   var c = colors[mode];
@@ -1049,9 +1050,10 @@ function drawWave() {
     
     // only odd-size npcs are healable for now
     if (s % 2 == 1) {
+      const centerOffset = (s - 1) / 2;
       for (const [mX, mY] of minotaurs) {
-        if (hasLOS(mX + 1, mY - 1, mobs[i][0] + 1, mobs[i][1] - 1, 1, MINOTAUR_HEAL_RANGE, false)) {
-          ctx.strokeStyle = "purple";
+        if (hasLOS(mX + 1, mY - 1, mobs[i][0] + centerOffset, mobs[i][1] - centerOffset, 1, MINOTAUR_HEAL_RANGE, false)) {
+          ctx.strokeStyle = MINOTAUR_HEAL_COLOR;
           ctx.beginPath();
           ctx.moveTo((mX + 1.5) * size, (mY - 0.5) * size);
           ctx.lineTo((mobs[i][0] + s / 2) * size, (mobs[i][1] - s / 2 + 1) * size);
