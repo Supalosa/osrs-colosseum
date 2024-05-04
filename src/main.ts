@@ -1051,7 +1051,7 @@ function drawWave() {
     if (s % 2 == 1) {
       for (const [mX, mY] of minotaurs) {
         if (hasLOS(mX + 1, mY - 1, mobs[i][0] + 1, mobs[i][1] - 1, 1, MINOTAUR_HEAL_RANGE, false)) {
-          ctx.fillStyle = colors[MINOTAUR];
+          ctx.strokeStyle = "purple";
           ctx.beginPath();
           ctx.moveTo((mX + 1.5) * size, (mY - 0.5) * size);
           ctx.lineTo((mobs[i][0] + s / 2) * size, (mobs[i][1] - s / 2 + 1) * size);
