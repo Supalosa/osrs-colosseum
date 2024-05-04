@@ -28,6 +28,9 @@ const MANTICORE_PATTERNS: { [patternName: string]: number[] } = {
   [MANTICORE_MAGE_FIRST]: [1, 0, 2],
 };
 
+const MINOTAUR = 5;
+const MINOTAUR_HEAL_RANGE = 7;
+
 const DELAY_FIRST_ATTACK_TICKS = 3;
 
 var pillars = [
@@ -458,6 +461,7 @@ function isPillar(x: number, y: number) {
 function hasLOS(
   x1: number,
   y1: number,
+  // target x, y
   x2: number,
   y2: number,
   s = 1,
@@ -918,10 +922,19 @@ function drawWave() {
       t > 0,
       colors[t]
     );
+    // draw minotaur line-of-sight (from center tile as if it were a player)
+    if (t === MINOTAUR) {
+      drawLOS(mobs[draggingNpcIndex][0] + 1, mobs[draggingNpcIndex][1] - 1, 1, MINOTAUR_HEAL_RANGE, false, colors[MINOTAUR])
+    }
   } else {
     var s = SIZE[mode];
     var r = RANGE[mode];
     drawLOS(selected[0], selected[1], s, r, mode > 0, colors[mode]);
+    
+    // draw minotaur line-of-sight (from center tile as if it were a player)
+    if (mode === MINOTAUR) {
+      drawLOS(selected[0] + 1, selected[1] - 1, 1, MINOTAUR_HEAL_RANGE, false, colors[MINOTAUR])
+    }
   }
   var c = colors[mode];
   var s = SIZE[mode];
@@ -1007,8 +1020,10 @@ function drawWave() {
     ctx.globalAlpha = 1;
   }
   // mobs
+  const minotaurs = mobs.filter((m) => m[2] === MINOTAUR);
   for (var i = 0; i < mobs.length; i++) {
     const t = mobs[i][2];
+    const s = SIZE[mobs[i][2]];
     if (!t) {
       // player
       continue;
@@ -1022,14 +1037,27 @@ function drawWave() {
     ctx.drawImage(
       mob_i,
       mobs[i][0] * size,
-      (mobs[i][1] - SIZE[mobs[i][2]] + 1) * size,
-      SIZE[mobs[i][2]] * size,
-      SIZE[mobs[i][2]] * size
+      (mobs[i][1] - s + 1) * size,
+      s * size,
+      s * size
     );
     const mobExtra = mobs[i][6];
     if (t === MANTICORE && mobExtra !== null) {
       const colorPattern = MANTICORE_PATTERNS[mobExtra];
       drawManticorePattern(colorPattern, mobs[i][0], mobs[i][1]);
+    }
+    
+    // only odd-size npcs are healable for now
+    if (s % 2 == 1) {
+      for (const [mX, mY] of minotaurs) {
+        if (hasLOS(mX + 1, mY - 1, mobs[i][0] + 1, mobs[i][1] - 1, 1, MINOTAUR_HEAL_RANGE, false)) {
+          ctx.fillStyle = colors[MINOTAUR];
+          ctx.beginPath();
+          ctx.moveTo((mX + 1.5) * size, (mY - 0.5) * size);
+          ctx.lineTo((mobs[i][0] + s / 2) * size, (mobs[i][1] - s / 2 + 1) * size);
+          ctx.stroke();
+        }
+      }
     }
   }
   ctx.font = "16px sans-serif";
