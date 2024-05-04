@@ -1051,6 +1051,7 @@ function drawWave() {
     // only odd-size npcs are healable for now
     if (s % 2 == 1) {
       const centerOffset = (s - 1) / 2;
+      ctx.lineWidth = 3;
       for (const [mX, mY] of minotaurs) {
         if (hasLOS(mX + 1, mY - 1, mobs[i][0] + centerOffset, mobs[i][1] - centerOffset, 1, MINOTAUR_HEAL_RANGE, false)) {
           ctx.strokeStyle = MINOTAUR_HEAL_COLOR;
@@ -1060,6 +1061,7 @@ function drawWave() {
           ctx.stroke();
         }
       }
+      ctx.lineWidth = 1;
     }
   }
   ctx.font = "16px sans-serif";
