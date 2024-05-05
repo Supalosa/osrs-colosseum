@@ -72,6 +72,7 @@ var showSpawns = true;
 var showPlayerLoS = true;
 var showZukSpots = true;
 var checker = true;
+let mousedOverNpc: number | null = null;
 
 // tape for mobs
 var tape: TapeEntry[] = [];
@@ -113,6 +114,7 @@ let mapElement: HTMLCanvasElement | null = <HTMLCanvasElement>(
   document.getElementById("map")
 );
 let delayFirstAttack: HTMLInputElement | null = null;
+let showVenatorBounce: HTMLInputElement | null = null;
 let replayAutoButton: HTMLButtonElement | null = null;
 let copyReplayUrlButton: HTMLButtonElement | null = null;
 let replayIndicator: HTMLDivElement | null = null;
@@ -132,6 +134,9 @@ function initDOM() {
   mapElement.height = CANVAS_HEIGHT;
   delayFirstAttack = document.getElementById(
     "delayFirstAttack"
+  ) as HTMLInputElement;
+  showVenatorBounce = document.getElementById(
+    "showVenatorBounce"
   ) as HTMLInputElement;
   replayAutoButton = document.getElementById(
     "replayAutoButton"
@@ -306,9 +311,11 @@ mapElement?.addEventListener("mousemove", function (e) {
     return;
   }
   var mouseIcon = "auto";
+  mousedOverNpc = null;
   for (var i = 0; i < mobs.length; i++) {
     if (doesCollide(x, y, 1, mobs[i][0], mobs[i][1], SIZE[mobs[i][2]])) {
       mouseIcon = "move";
+      mousedOverNpc = i;
       break;
     }
   }
@@ -930,6 +937,7 @@ function drawWave() {
       drawLOS(mobs[draggingNpcIndex][0] + 1, mobs[draggingNpcIndex][1] - 1, 1, MINOTAUR_HEAL_RANGE, false, MINOTAUR_HEAL_COLOR)
     }
   } else {
+    // currently dragging an NPC, draw its LOS
     var s = SIZE[mode];
     var r = RANGE[mode];
     drawLOS(selected[0], selected[1], s, r, mode > 0, colors[mode]);
@@ -1066,6 +1074,8 @@ function drawWave() {
       ctx.lineWidth = 1;
     }
   }
+
+  // venator bounce candidates
   ctx.font = "16px sans-serif";
   ctx.textAlign = "center";
   ctx.textBaseline = "top";
