@@ -1105,8 +1105,7 @@ function drawWave() {
       mousedOverNpc !== i
     ) {
       // venator bounce candidate
-
-      ctx.strokeStyle = "purple";
+      ctx.strokeStyle = "#ff69b4";
       ctx.lineWidth = 5;
       const [sX, sY, sT] = mobs[mousedOverNpc];
       if (canBounce(sX, sY, SIZE[sT], mobs[i][0], mobs[i][1], s)) {
