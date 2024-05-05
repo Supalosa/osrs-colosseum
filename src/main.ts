@@ -1,6 +1,9 @@
 import { Coordinates, Mob, MobExtra, MobSpec, TapeEntry } from "./types";
 import { blockedTileRanges } from "./constants";
 
+import "./style.css";
+import { canBounce } from "./venator";
+
 const SIZE = [1, 1, 3, 2, 3, 3, 3];
 const RANGE = [10, 10, 15, 1, 15, 1, 15];
 const CD = [0, 5, 5, 5, 10, 5, 5];
@@ -70,6 +73,7 @@ var showSpawns = true;
 var showPlayerLoS = true;
 var showZukSpots = true;
 var checker = true;
+let mousedOverNpc: number | null = null;
 
 // tape for mobs
 var tape: TapeEntry[] = [];
@@ -111,6 +115,7 @@ let mapElement: HTMLCanvasElement | null = <HTMLCanvasElement>(
   document.getElementById("map")
 );
 let delayFirstAttack: HTMLInputElement | null = null;
+let showVenatorBounce: HTMLInputElement | null = null;
 let replayAutoButton: HTMLButtonElement | null = null;
 let copyReplayUrlButton: HTMLButtonElement | null = null;
 let replayIndicator: HTMLDivElement | null = null;
@@ -130,6 +135,9 @@ function initDOM() {
   mapElement.height = CANVAS_HEIGHT;
   delayFirstAttack = document.getElementById(
     "delayFirstAttack"
+  ) as HTMLInputElement;
+  showVenatorBounce = document.getElementById(
+    "showVenatorBounce"
   ) as HTMLInputElement;
   replayAutoButton = document.getElementById(
     "replayAutoButton"
@@ -304,12 +312,17 @@ mapElement?.addEventListener("mousemove", function (e) {
     return;
   }
   var mouseIcon = "auto";
+  var dirty = false;
+  var wasMousedOverNpc = mousedOverNpc;
+  mousedOverNpc = null;
   for (var i = 0; i < mobs.length; i++) {
     if (doesCollide(x, y, 1, mobs[i][0], mobs[i][1], SIZE[mobs[i][2]])) {
       mouseIcon = "move";
+      mousedOverNpc = i;
       break;
     }
   }
+  dirty ||= mousedOverNpc !== wasMousedOverNpc;
 
   mapElement!.style.cursor = mouseIcon;
   if (e.buttons & 0x1) {
@@ -322,6 +335,9 @@ mapElement?.addEventListener("mousemove", function (e) {
       selected[0] = x;
       selected[1] = y;
     }
+    dirty = true;
+  }
+  if (dirty) {
     drawWave();
   }
 });
@@ -925,16 +941,31 @@ function drawWave() {
     );
     // draw minotaur line-of-sight (from center tile as if it were a player)
     if (t === MINOTAUR) {
-      drawLOS(mobs[draggingNpcIndex][0] + 1, mobs[draggingNpcIndex][1] - 1, 1, MINOTAUR_HEAL_RANGE, false, MINOTAUR_HEAL_COLOR)
+      drawLOS(
+        mobs[draggingNpcIndex][0] + 1,
+        mobs[draggingNpcIndex][1] - 1,
+        1,
+        MINOTAUR_HEAL_RANGE,
+        false,
+        MINOTAUR_HEAL_COLOR
+      );
     }
   } else {
+    // currently dragging an NPC, draw its LOS
     var s = SIZE[mode];
     var r = RANGE[mode];
     drawLOS(selected[0], selected[1], s, r, mode > 0, colors[mode]);
-    
+
     // draw minotaur line-of-sight (from center tile as if it were a player)
     if (mode === MINOTAUR) {
-      drawLOS(selected[0] + 1, selected[1] - 1, 1, MINOTAUR_HEAL_RANGE, false, MINOTAUR_HEAL_COLOR)
+      drawLOS(
+        selected[0] + 1,
+        selected[1] - 1,
+        1,
+        MINOTAUR_HEAL_RANGE,
+        false,
+        MINOTAUR_HEAL_COLOR
+      );
     }
   }
   var c = colors[mode];
@@ -1023,7 +1054,7 @@ function drawWave() {
   // mobs
   const minotaurs = mobs.filter((m) => m[2] === MINOTAUR);
   for (var i = 0; i < mobs.length; i++) {
-    const t = mobs[i][2];
+    const [x, y, t] = mobs[i];
     const s = SIZE[mobs[i][2]];
     if (!t) {
       // player
@@ -1035,35 +1066,55 @@ function drawWave() {
     } else {
       mob_i.src = img_sources_north[t];
     }
-    ctx.drawImage(
-      mob_i,
-      mobs[i][0] * size,
-      (mobs[i][1] - s + 1) * size,
-      s * size,
-      s * size
-    );
+    ctx.drawImage(mob_i, x * size, (y - s + 1) * size, s * size, s * size);
     const mobExtra = mobs[i][6];
     if (t === MANTICORE && mobExtra !== null) {
       const colorPattern = MANTICORE_PATTERNS[mobExtra];
-      drawManticorePattern(colorPattern, mobs[i][0], mobs[i][1]);
+      drawManticorePattern(colorPattern, x, y);
     }
-    
+
     // only odd-size npcs are healable for now
     if (s % 2 == 1) {
       const centerOffset = (s - 1) / 2;
       ctx.lineWidth = 3;
       for (const [mX, mY] of minotaurs) {
-        if (hasLOS(mX + 1, mY - 1, mobs[i][0] + centerOffset, mobs[i][1] - centerOffset, 1, MINOTAUR_HEAL_RANGE, false)) {
+        if (
+          hasLOS(
+            mX + 1,
+            mY - 1,
+            x + centerOffset,
+            y - centerOffset,
+            1,
+            MINOTAUR_HEAL_RANGE,
+            false
+          )
+        ) {
           ctx.strokeStyle = MINOTAUR_HEAL_COLOR;
           ctx.beginPath();
           ctx.moveTo((mX + 1.5) * size, (mY - 0.5) * size);
-          ctx.lineTo((mobs[i][0] + s / 2) * size, (mobs[i][1] - s / 2 + 1) * size);
+          ctx.lineTo((x + s / 2) * size, (y - s / 2 + 1) * size);
           ctx.stroke();
         }
       }
       ctx.lineWidth = 1;
     }
+
+    if (
+      showVenatorBounce?.checked &&
+      mousedOverNpc !== null &&
+      mousedOverNpc !== i
+    ) {
+      // venator bounce candidate
+      ctx.strokeStyle = "#ff69b4";
+      ctx.lineWidth = 5;
+      const [sX, sY, sT] = mobs[mousedOverNpc];
+      if (canBounce(sX, sY, SIZE[sT], mobs[i][0], mobs[i][1], s)) {
+        ctx.strokeRect(x * size, (y - s + 1) * size, size * s, size * s);
+      }
+      ctx.lineWidth = 1;
+    }
   }
+
   ctx.font = "16px sans-serif";
   ctx.textAlign = "center";
   ctx.textBaseline = "top";

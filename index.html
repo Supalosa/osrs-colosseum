@@ -2,30 +2,11 @@
 <html>
   <head>
     <title>Colosseum LOS</title>
-    <style>
-      #map {
-        border: 1px solid black;
-        display: inline-block;
-      }
-      #tape {
-        display: inline-block;
-        vertical-align: top;
-      }
-      button {
-        margin-bottom: 3px;
-      }
-      .south {
-        -webkit-transform: rotate(180deg);
-        -moz-transform: rotate(180deg);
-        -ms-transform: rotate(180deg);
-        -o-transform: rotate(180deg);
-        transform: rotate(180deg);
-      }
-    </style>
+    <link rel="stylesheet" href="style.css" />
   </head>
   <body id="container">
     <script type="module" src="/src/main.ts"></script>
-    <div style="margin-bottom: 10px; width: 800px; text-align: center">
+    <div style="margin-bottom: 10px; width: 860px; text-align: center">
       <button onclick="remove()">Clear</button>
       &nbsp;
       <button onclick="place()">Place NPC</button>
@@ -39,32 +20,55 @@
       <button onclick="setMode(3)" style="border-color: orange">Jaguar</button>
       &nbsp;
       <button onclick="setMode(4, 'r')" style="border-color: purple">
-        Manticore (Range)
+        Manti (Range)
       </button>
       &nbsp;
       <button onclick="setMode(4, 'm')" style="border-color: purple">
-        Manticore (Mage)
+        Manti (Mage)
       </button>
       &nbsp;
       <button onclick="setMode(5)" style="border-color: brown">Minotaur</button>
       &nbsp;
       <button onclick="setMode(6)" style="border-color: blue">Shockwave</button>
     </div>
-    <div style="margin-bottom: 10px; width: 800px; text-align: center">
+    <div style="margin-bottom: 10px; width: 860px; text-align: center">
       Toggle: &nbsp;
       <!--<button onclick="toggleNS()">N/S</button>-->
-      <button onclick="togglePlayerLoS()">LoS</button>
+      <button
+        onclick="togglePlayerLoS()"
+        aria-label="Show the currently selected unit's Line of Sight"
+        data-microtip-position="bottom"
+        role="tooltip"
+      >
+        LoS
+      </button>
       <button onClick="copySpawnURL()">Copy Spawn URL</button>
       <button
         id="copyReplayUrlButton"
         disabled="true"
         onClick="copyReplayURL()"
-        title="Select a segment of the tick diagram to export a replay (max 32 ticks)"
+        aria-label="Select a segment of the tick diagram to export a replay (max 32 ticks)"
+        data-microtip-position="bottom"
+        role="tooltip"
       >
         Copy Replay URL
       </button>
-      <input type="checkbox" id="delayFirstAttack" value="false" />Delay first
-      attack by 3t
+      <input
+        type="checkbox"
+        id="delayFirstAttack"
+        value="false"
+        aria-label="NPCs will not attack for 3t after wave start"
+        data-microtip-position="bottom"
+        role="tooltip"
+      />Delay first attack by 3t
+      <input
+        type="checkbox"
+        id="showVenatorBounce"
+        value="false"
+        aria-label="Mouse over an NPC to show nearby NPCs that a Venator bow will bounce to"
+        data-microtip-position="bottom"
+        role="tooltip"
+      />Venator
     </div>
     <div style="margin-bottom: 10px; width: 800px; text-align: center">
       <div id="replayIndicator"></div>
