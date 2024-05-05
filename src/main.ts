@@ -1,6 +1,8 @@
 import { Coordinates, Mob, MobExtra, MobSpec, TapeEntry } from "./types";
 import { blockedTileRanges } from "./constants";
 
+import "./style.css";
+
 const SIZE = [1, 1, 3, 2, 3, 3, 3];
 const RANGE = [10, 10, 15, 1, 15, 1, 15];
 const CD = [0, 5, 5, 5, 10, 5, 5];
