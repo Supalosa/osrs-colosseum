@@ -24,7 +24,7 @@ export const blockedTileRanges: Coordinates[][] = [
     [29, 34],
   ], // 4
   [
-    [0, 4],
+    [0, 3],
     [31, 34],
   ], // 5
   [
