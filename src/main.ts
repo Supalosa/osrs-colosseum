@@ -30,6 +30,7 @@ const MANTICORE_PATTERNS: { [patternName: string]: number[] } = {
   [MANTICORE_RANGE_FIRST]: [0, 1, 2],
   [MANTICORE_MAGE_FIRST]: [1, 0, 2],
 };
+const MANTICORE_DELAY = 5;
 
 const MINOTAUR = 5;
 const MINOTAUR_HEAL_RANGE = 7;
@@ -661,6 +662,7 @@ export function step() {
       ? tickCount >= DELAY_FIRST_ATTACK_TICKS
       : true;
     var line: TapeEntry = [];
+    let mantiSameTick = false;
     for (var i = 0; i < mobs.length; i++) {
       if (mobs[i][2] < 8) {
         var mob = mobs[i];
@@ -700,10 +702,18 @@ export function step() {
         if (canAttack && hasLOS(x, y, selected[0], selected[1], s, r, true)) {
           if (mob[5] <= 0) {
             if (mob[2] === MANTICORE) {
-              manticoreTicksRemaining[i] = 3;
-            }
-            attacked = 1;
-            mob[5] = CD[t];
+              if (mantiSameTick) { // give delay when seen on same tick
+                mob[5] = MANTICORE_DELAY;
+              } else {
+                manticoreTicksRemaining[i] = 3;
+                attacked = 1;
+                mob[5] = CD[t];
+              }
+              mantiSameTick = true;
+            } else {
+              attacked = 1;
+              mob[5] = CD[t];
+            } 
           }
         }
         // pack the positions into 3rd and 4th byte (2nd byte is manticore attack style)
