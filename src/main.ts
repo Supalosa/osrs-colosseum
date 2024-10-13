@@ -45,7 +45,6 @@ var pillars = [
   [23, 25],
 ];
 var filters = [true, true, true, true];
-var south = false;
 
 var spawns: Coordinates[] = [
   [3, 19],
@@ -86,7 +85,7 @@ let tickCount = 0;
 
 let replay: Coordinates[] | null = null;
 let replayTick: number | null = null;
-let replayAuto: number | null = null;
+let replayAuto: ReturnType<typeof setTimeout> | null = null;
 
 let draggingNpcIndex: number | null = null;
 let draggingNpcOffset: Coordinates | null = null;
@@ -603,18 +602,6 @@ function legalPosition(x: number, y: number, size: number, index: number) {
   }
   return !collision;
 }
-function digPosition(x: number, y: number) {
-  if (y - 3 < 0 || x + 3 > 28 || x < 0 || y > 29) {
-    return false;
-  }
-  var collision = false;
-  for (var i = 0; i < pillars.length; i++) {
-    if (filters[i] && doesCollide(x, y, 4, pillars[i][0], pillars[i][1], 3)) {
-      return false;
-    }
-  }
-  return !collision;
-}
 function sortMobs() {
   mobs.sort(function (a, b) {
     return a[2] - b[2];
@@ -662,7 +649,6 @@ export function step() {
       ? tickCount >= DELAY_FIRST_ATTACK_TICKS
       : true;
     var line: TapeEntry = [];
-    let mantiSameTick = false;
     for (var i = 0; i < mobs.length; i++) {
       if (mobs[i][2] < 8) {
         var mob = mobs[i];
@@ -702,14 +688,11 @@ export function step() {
         if (canAttack && hasLOS(x, y, selected[0], selected[1], s, r, true)) {
           if (mob[5] <= 0) {
             if (mob[2] === MANTICORE) {
-              if (mantiSameTick) { // give delay when seen on same tick
-                mob[5] = MANTICORE_DELAY;
-              } else {
                 manticoreTicksRemaining[i] = 3;
                 attacked = 1;
                 mob[5] = CD[t];
-              }
-              mantiSameTick = true;
+                // Delay any other mantis if they are ready to attack
+                delayAllMantis(CD[t]);
             } else {
               attacked = 1;
               mob[5] = CD[t];
@@ -738,6 +721,12 @@ export function step() {
     tape.push(line);
   }
   tickCount++;
+}
+function delayAllMantis(ticks: number) {
+  mobs.filter((mob) => mob[2] === MANTICORE).forEach((mob) => {
+    mob[5] = ticks;
+  });
+
 }
 function stopReplay() {
   replay = null;
