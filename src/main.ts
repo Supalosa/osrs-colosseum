@@ -649,6 +649,7 @@ export function step() {
       ? tickCount >= DELAY_FIRST_ATTACK_TICKS
       : true;
     var line: TapeEntry = [];
+    let manticoreFiredThisTick = false;
     for (var i = 0; i < mobs.length; i++) {
       if (mobs[i][2] < 8) {
         var mob = mobs[i];
@@ -688,11 +689,13 @@ export function step() {
         if (canAttack && hasLOS(x, y, selected[0], selected[1], s, r, true)) {
           if (mob[5] <= 0) {
             if (mob[2] === MANTICORE) {
+              if (!manticoreFiredThisTick) {
                 manticoreTicksRemaining[i] = 3;
                 attacked = 1;
                 mob[5] = CD[t];
                 // Delay any other mantis if they are ready to attack
-                delayAllMantis(CD[t]);
+                manticoreFiredThisTick = true;
+              }
             } else {
               attacked = 1;
               mob[5] = CD[t];
@@ -717,13 +720,16 @@ export function step() {
         delete manticoreTicksRemaining[index];
       }
     });
+    if (manticoreFiredThisTick) {
+      delayAllReadyMantis(MANTICORE_DELAY);
+    }
     playerTape.push([selected[0], selected[1]]);
     tape.push(line);
   }
   tickCount++;
 }
-function delayAllMantis(ticks: number) {
-  mobs.filter((mob) => mob[2] === MANTICORE).forEach((mob) => {
+function delayAllReadyMantis(ticks: number) {
+  mobs.filter((mob) => mob[2] === MANTICORE && mob[5] <= 0).forEach((mob) => {
     mob[5] = ticks;
   });
 
@@ -903,26 +909,26 @@ function drawWave() {
     ctx.fillStyle = ctx.strokeStyle = c;
     if (t < 8) {
       ctx.fillRect(
-        mobs[i][0] * size,
-        (mobs[i][1] + 1) * size,
+        x * size,
+        (screenY + 1) * size,
         1 * size,
         -1 * size
       );
       ctx.strokeRect(
-        mobs[i][0] * size + 1,
-        (mobs[i][1] + 1) * size - 1,
+        x * size + 1,
+        (y + 1) * size - 1,
         s * size,
         -s * size
       );
     }
     if (
       mode == 0 &&
-      hasLOS(mobs[i][0], mobs[i][1], selected[0], selected[1], s, r, true)
+      hasLOS(x, y, selected[0], selected[1], s, r, true)
     ) {
       ctx.fillStyle = "black";
       ctx.fillRect(
-        mobs[i][0] * size,
-        (mobs[i][1] + 1) * size,
+        x * size,
+        (y + 1) * size,
         (1 * size) / 4,
         (-1 * size) / 4
       );
