@@ -47,7 +47,7 @@
         id="copyReplayUrlButton"
         disabled="true"
         onClick="copyReplayURL()"
-        aria-label="Select a segment of the tick diagram to export a replay (max 32 ticks)"
+        aria-label="Copy the current tick diagram as replay (or select a segment). Max 32 ticks"
         data-microtip-position="bottom"
         role="tooltip"
       >
@@ -71,7 +71,7 @@
       />Venator
     </div>
     <div style="margin-bottom: 10px; width: 800px; text-align: center">
-      <div id="replayIndicator"></div>
+      <span id="replayIndicator"></span>
       Controls: &nbsp;
       <button
         onclick="reset(); drawWave();"
