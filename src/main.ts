@@ -910,7 +910,7 @@ function drawWave() {
     if (t < 8) {
       ctx.fillRect(
         x * size,
-        (screenY + 1) * size,
+        (y + 1) * size,
         1 * size,
         -1 * size
       );
