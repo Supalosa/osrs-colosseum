@@ -101,10 +101,10 @@ function toggleAutoReplay() {
   if (replayAuto) {
     clearTimeout(replayAuto);
     replayAuto = null;
-    drawWave();
   } else {
     replayAuto = setTimeout(() => doAutoTick(), 600);
   }
+  updateUi();
 }
 
 const MAX_EXPORT_LENGTH = 128;
@@ -375,16 +375,20 @@ function copySpawnURL() {
   alert("Spawn URL Copied!");
 }
 export function copyReplayURL() {
-  if (tapeSelectionRange?.length != 2) {
-    return null;
+  let lowerBound, upperBoundInclusive;
+  if (tapeSelectionRange?.length === 2) {
+    lowerBound = tapeSelectionRange[0];
+    upperBoundInclusive = Math.min(
+      tapeSelectionRange[1] + 1,
+      tapeSelectionRange[0] + MAX_EXPORT_LENGTH
+    );
+  } else {
+    lowerBound = 0;
+    upperBoundInclusive = Math.min(tape.length, MAX_EXPORT_LENGTH);
   }
-  const upperBoundInclusive = Math.min(
-    tapeSelectionRange[1] + 1,
-    tapeSelectionRange[0] + MAX_EXPORT_LENGTH
-  );
-  var mobTicks = tape.slice(tapeSelectionRange[0], upperBoundInclusive);
+  var mobTicks = tape.slice(lowerBound, upperBoundInclusive);
   var playerTicks = playerTape.slice(
-    tapeSelectionRange[0],
+    lowerBound,
     upperBoundInclusive
   );
 
@@ -699,7 +703,7 @@ export function step() {
             } else {
               attacked = 1;
               mob[5] = CD[t];
-            } 
+            }
           }
         }
         // pack the positions into 3rd and 4th byte (2nd byte is manticore attack style)
@@ -729,14 +733,20 @@ export function step() {
   tickCount++;
 }
 function delayAllReadyMantis(ticks: number) {
-  mobs.filter((mob) => mob[2] === MANTICORE && mob[5] <= 0).forEach((mob) => {
-    mob[5] = ticks;
-  });
-
+  mobs
+    .filter((mob) => mob[2] === MANTICORE && mob[5] <= 0)
+    .forEach((mob) => {
+      mob[5] = ticks;
+    });
 }
 function stopReplay() {
   replay = null;
   replayTick = null;
+  if (replayAuto) {
+    clearTimeout(replayAuto);
+  }
+  replayAuto = null;
+  updateUi();
 }
 function remove() {
   mobs = [];
@@ -817,7 +827,9 @@ function updateUi() {
   } else {
     replayAutoButton.hidden = true;
   }
-  copyReplayUrlButton.disabled = tapeSelectionRange?.length != 2;
+  copyReplayUrlButton.disabled =
+    !!replayAuto || tape.length === 0 || tape.length > 32;
+  console.log(replayAuto);
   replayIndicator.innerHTML = !!replay
     ? `<strong><span style="color: #FF0000;">Replay: Tick ${replayTick} / ${replay.length}</span></strong>`
     : "";
@@ -908,30 +920,12 @@ function drawWave() {
     var c = colors[t];
     ctx.fillStyle = ctx.strokeStyle = c;
     if (t < 8) {
-      ctx.fillRect(
-        x * size,
-        (y + 1) * size,
-        1 * size,
-        -1 * size
-      );
-      ctx.strokeRect(
-        x * size + 1,
-        (y + 1) * size - 1,
-        s * size,
-        -s * size
-      );
+      ctx.fillRect(x * size, (y + 1) * size, 1 * size, -1 * size);
+      ctx.strokeRect(x * size + 1, (y + 1) * size - 1, s * size, -s * size);
     }
-    if (
-      mode == 0 &&
-      hasLOS(x, y, selected[0], selected[1], s, r, true)
-    ) {
+    if (mode == 0 && hasLOS(x, y, selected[0], selected[1], s, r, true)) {
       ctx.fillStyle = "black";
-      ctx.fillRect(
-        x * size,
-        (y + 1) * size,
-        (1 * size) / 4,
-        (-1 * size) / 4
-      );
+      ctx.fillRect(x * size, (y + 1) * size, (1 * size) / 4, (-1 * size) / 4);
     }
   }
   if (draggingNpcIndex !== null) {
