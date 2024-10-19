@@ -1007,7 +1007,11 @@ function drawWave() {
   var offset = MAP_WIDTH * size;
   const tickerStartY = (idx: number) => size * idx;
   for (var i = 0; i < tape.length; i++) {
-    ctx.fillStyle = i % 2 == 0 ? "#ddd" : "#eee";
+    if (delayFirstAttack?.checked && i < DELAY_FIRST_ATTACK_TICKS) {
+      ctx.fillStyle = i % 2 == 0 ? "#666" : "#777";
+    } else {
+      ctx.fillStyle = i % 2 == 0 ? "#ddd" : "#eee";
+    }
     ctx.fillRect(offset, size * i, size * TICKER_WIDTH, size);
     for (var j = 0; j < tape[i].length; j++) {
       const value = tape[i][j];
