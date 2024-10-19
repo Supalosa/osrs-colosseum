@@ -829,7 +829,6 @@ function updateUi() {
   }
   copyReplayUrlButton.disabled =
     !!replayAuto || tape.length === 0 || tape.length > 32;
-  console.log(replayAuto);
   replayIndicator.innerHTML = !!replay
     ? `<strong><span style="color: #FF0000;">Replay: Tick ${replayTick} / ${replay.length}</span></strong>`
     : "";
