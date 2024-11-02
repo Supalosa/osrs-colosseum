@@ -1,114 +1,13 @@
-<!DOCTYPE html>
-<html>
+<!doctype html>
+<html lang="en">
   <head>
-    <title>Colosseum LOS</title>
-    <link rel="stylesheet" href="style.css" />
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Vite + React + TS</title>
   </head>
-  <body id="container">
-    <script type="module" src="/src/main.ts"></script>
-    <div style="margin-bottom: 10px; width: 860px; text-align: center">
-      <button onclick="remove()">Clear</button>
-      &nbsp;
-      <button onclick="place()">Place NPC</button>
-      &nbsp;
-      <button onclick="setMode(0)" style="border-color: red">Player</button>
-      &nbsp;
-      <button onclick="setMode(1)" style="border-color: cyan">Serpent</button>
-      &nbsp;
-      <button onclick="setMode(2)" style="border-color: lime">Javelin</button>
-      &nbsp;
-      <button onclick="setMode(3)" style="border-color: orange">Jaguar</button>
-      &nbsp;
-      <button onclick="setMode(4, 'r')" style="border-color: purple">
-        Manti (Range)
-      </button>
-      &nbsp;
-      <button onclick="setMode(4, 'm')" style="border-color: purple">
-        Manti (Mage)
-      </button>
-      &nbsp;
-      <button onclick="setMode(5)" style="border-color: brown">Minotaur</button>
-      &nbsp;
-      <button onclick="setMode(6)" style="border-color: blue">Shockwave</button>
-    </div>
-    <div style="margin-bottom: 10px; width: 860px; text-align: center">
-      Toggle: &nbsp;
-      <!--<button onclick="toggleNS()">N/S</button>-->
-      <button
-        onclick="togglePlayerLoS()"
-        aria-label="Show the currently selected unit's Line of Sight"
-        data-microtip-position="bottom"
-        role="tooltip"
-      >
-        LoS
-      </button>
-      <button onClick="copySpawnURL()">Copy Spawn URL</button>
-      <button
-        id="copyReplayUrlButton"
-        disabled="true"
-        onClick="copyReplayURL()"
-        aria-label="Copy the current tick diagram as replay (or select a segment). Max 32 ticks"
-        data-microtip-position="bottom"
-        role="tooltip"
-      >
-        Copy Replay URL
-      </button>
-      <input
-        type="checkbox"
-        id="delayFirstAttack"
-        value="false"
-        aria-label="NPCs will not attack for 3t after wave start"
-        data-microtip-position="bottom"
-        role="tooltip"
-      />Delay first attack by 3t
-      <input
-        type="checkbox"
-        id="showVenatorBounce"
-        value="false"
-        aria-label="Mouse over an NPC to show nearby NPCs that a Venator bow will bounce to"
-        data-microtip-position="bottom"
-        role="tooltip"
-      />Venator
-    </div>
-    <div style="margin-bottom: 10px; width: 800px; text-align: center">
-      <span id="replayIndicator"></span>
-      Controls: &nbsp;
-      <button
-        onclick="reset(); drawWave();"
-        title="hotkey: down or mousewheel up"
-      >
-        &laquo; Reset
-      </button>
-      &nbsp;
-      <button
-        onclick="toggleAutoReplay()"
-        id="replayAutoButton"
-        hidden="true"
-      ></button>
-      &nbsp;
-      <button
-        onclick="step(); drawWave();"
-        title="hotkey: up or mousewheel down"
-      >
-        Step &raquo;
-      </button>
-    </div>
-    <canvas
-      id="map"
-      onselectstart="return false"
-      oncontextmenu="return false"
-    ></canvas>
-    <p style="font-size: 12px">
-      Based on
-      <a href="https://ifreedive-osrs.github.io/">ifreedive's tool</a> which is
-      in turn based on some code from
-      <a href="https://bistools.github.io/inferno.html">Backseat's tool</a>,
-      adapted by
-      <a href="https://github.com/Supalosa/osrs-colosseum">Supalosa</a> for
-      Colosseum.
-      <a href="https://github.com/Supalosa/osrs-colosseum/issues"
-        >[Issue tracker]</a
-      >
-    </p>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
