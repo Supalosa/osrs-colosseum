@@ -170,8 +170,12 @@ export const onCanvasMouseDown = function (e: React.MouseEvent) {
       }
     }
     if (selectedNpcIndex === null) {
-      selected = [x, y];
-      cursorLocation = [x, y];
+      if (mode === 0) {
+        // move player
+        selected = [x, y];
+      } else {
+        cursorLocation = [x, y];
+      }
     } else {
       // start drag
       draggingNpcIndex = selectedNpcIndex;
@@ -785,8 +789,11 @@ export function setMode(m: number, extra?: MobExtra) {
   // place current monster if not in "player" mode
   if (mode > 0) {
     place();
+    cursorLocation = null;
+  } else {
+    // else, set cursor to current player location to mimic old behaviour
+    cursorLocation = [...selected];
   }
-  cursorLocation = null;
   mode = m;
   modeExtra = extra ?? null;
   drawWave();
