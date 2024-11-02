@@ -23,6 +23,8 @@ export default tseslint.config(
         'warn',
         { allowConstantExport: true },
       ],
+      // allow `var` for legacy reasons, but we should replace with `let` or `const` eventually
+      'no-var': 'off',
     },
   },
 )
