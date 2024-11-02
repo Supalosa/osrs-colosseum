@@ -1,7 +1,6 @@
 import { Coordinates, Mob, MobExtra, MobSpec, TapeEntry } from "./types";
 import { blockedTileRanges } from "./constants";
 
-import "./style.css";
 import { canBounce } from "./venator";
 
 const SIZE = [1, 1, 3, 2, 3, 3, 3];
@@ -71,7 +70,6 @@ var selected = [...b5Tile];
 var mobs: Mob[] = [];
 var showSpawns = true;
 var showPlayerLoS = true;
-var showZukSpots = true;
 var checker = true;
 let mousedOverNpc: number | null = null;
 
@@ -111,9 +109,7 @@ const MAX_EXPORT_LENGTH = 128;
 
 let manticoreTicksRemaining: { [mobIndex: number]: number } = {};
 
-let mapElement: HTMLCanvasElement | null = <HTMLCanvasElement>(
-  document.getElementById("map")
-);
+let mapElement: HTMLCanvasElement | null = null;
 let delayFirstAttack: HTMLInputElement | null = null;
 let showVenatorBounce: HTMLInputElement | null = null;
 let replayAutoButton: HTMLButtonElement | null = null;
@@ -128,8 +124,8 @@ const TICKER_WIDTH = 9;
 const CANVAS_WIDTH = size * MAP_WIDTH + TICKER_WIDTH * size;
 const CANVAS_HEIGHT = size * MAP_HEIGHT;
 
-function initDOM() {
-  mapElement = document.getElementById("map") as HTMLCanvasElement;
+function initDOM(canvas: HTMLCanvasElement) {
+  mapElement = canvas;
   ctx = mapElement.getContext("2d");
   mapElement.width = CANVAS_WIDTH;
   mapElement.height = CANVAS_HEIGHT;
@@ -148,11 +144,124 @@ function initDOM() {
   replayIndicator = document.getElementById(
     "replayIndicator"
   ) as HTMLDivElement;
+
+  mapElement.addEventListener("mousedown", function (e) {
+    var x = e.offsetX;
+    var y = e.offsetY;
+    var selectedNpcIndex = null;
+    x = Math.floor(x / size);
+    y = Math.floor(y / size);
+    if (x < MAP_WIDTH) {
+      if (replay) {
+        stopReplay();
+      }
+      for (var i = 0; i < mobs.length; i++) {
+        if (doesCollide(x, y, 1, mobs[i][0], mobs[i][1], SIZE[mobs[i][2]])) {
+          selectedNpcIndex = i;
+          break;
+        }
+      }
+      if (selectedNpcIndex === null) {
+        selected[0] = x;
+        selected[1] = y;
+      } else {
+        // start drag
+        draggingNpcIndex = selectedNpcIndex;
+        draggingNpcOffset = [
+          x - mobs[selectedNpcIndex][0],
+          y - mobs[selectedNpcIndex][1],
+        ];
+      }
+    } else if (x <= CANVAS_WIDTH && y >= 0 && y <= tape.length + 1) {
+      const tapeIndex = Math.floor(y);
+      tapeSelectionRange = [tapeIndex];
+    }
+    drawWave();
+  });
+  mapElement.addEventListener("mouseup", function (e) {
+    var x = e.offsetX;
+    var y = e.offsetY;
+    x = Math.floor(x / size);
+    y = Math.floor(y / size);
+    if (tapeSelectionRange?.length === 1) {
+      if (x >= MAP_WIDTH && x <= CANVAS_WIDTH && y >= 0 && y <= CANVAS_HEIGHT) {
+        const endY = Math.min(y + 1, tape.length);
+        tapeSelectionRange = [tapeSelectionRange[0], endY];
+      }
+    }
+    draggingNpcIndex = null;
+    draggingNpcOffset = null;
+    drawWave();
+  });
+  mapElement.addEventListener("dblclick", function (e) {
+    var x = e.offsetX;
+    var y = e.offsetY;
+    x = Math.floor(x / size);
+    y = Math.floor(y / size);
+    if (x < MAP_WIDTH) {
+      for (var i = 0; i < mobs.length; i++) {
+        if (doesCollide(x, y, 1, mobs[i][0], mobs[i][1], SIZE[mobs[i][2]])) {
+          mobs.splice(i, 1);
+          break;
+        }
+      }
+      drawWave();
+    }
+  });
+  mapElement.addEventListener("wheel", function (e) {
+    if (e.deltaY > 0) {
+      step();
+      drawWave();
+    } else {
+      reset();
+      drawWave();
+    }
+  });
+
+  mapElement.addEventListener("mousemove", function (e) {
+    // dragging
+    var x = e.offsetX;
+    var y = e.offsetY;
+    x = Math.floor(x / size);
+    y = Math.floor(y / size);
+    if (x < 0 || x >= MAP_WIDTH || y < 0 || y > MAP_HEIGHT) {
+      return;
+    }
+    var mouseIcon = "auto";
+    var dirty = false;
+    var wasMousedOverNpc = mousedOverNpc;
+    mousedOverNpc = null;
+    for (var i = 0; i < mobs.length; i++) {
+      if (doesCollide(x, y, 1, mobs[i][0], mobs[i][1], SIZE[mobs[i][2]])) {
+        mouseIcon = "move";
+        mousedOverNpc = i;
+        break;
+      }
+    }
+    dirty ||= mousedOverNpc !== wasMousedOverNpc;
+
+    mapElement!.style.cursor = mouseIcon;
+    if (e.buttons & 0x1) {
+      if (draggingNpcIndex !== null && draggingNpcOffset !== null) {
+        mobs[draggingNpcIndex][0] = x - draggingNpcOffset[0];
+        mobs[draggingNpcIndex][1] = y - draggingNpcOffset[1];
+        mobs[draggingNpcIndex][3] = x - draggingNpcOffset[0];
+        mobs[draggingNpcIndex][4] = y - draggingNpcOffset[1];
+      } else if (mode > 0) {
+        selected[0] = x;
+        selected[1] = y;
+      }
+      dirty = true;
+    }
+    if (dirty) {
+      drawWave();
+    }
+  });
   return mapElement;
 }
 
-document.addEventListener("DOMContentLoaded", function () {
-  initDOM();
+export function onCanvasLoaded(canvas: HTMLCanvasElement) {
+  initDOM(canvas);
   var spawn = parent.location.search
     .replace("?", "")
     .split(".")
@@ -187,79 +296,33 @@ document.addEventListener("DOMContentLoaded", function () {
     replayAuto = setTimeout(() => doAutoTick(), 600);
   }
   drawWave();
-});
-mapElement?.addEventListener("mousedown", function (e) {
-  var x = e.offsetX;
-  var y = e.offsetY;
-  var selectedNpcIndex = null;
-  x = Math.floor(x / size);
-  y = Math.floor(y / size);
-  if (x < MAP_WIDTH) {
-    if (replay) {
-      stopReplay();
-    }
-    for (var i = 0; i < mobs.length; i++) {
-      if (doesCollide(x, y, 1, mobs[i][0], mobs[i][1], SIZE[mobs[i][2]])) {
-        selectedNpcIndex = i;
-        break;
-      }
-    }
-    if (selectedNpcIndex === null) {
-      selected[0] = x;
-      selected[1] = y;
-    } else {
-      // start drag
-      draggingNpcIndex = selectedNpcIndex;
-      draggingNpcOffset = [
-        x - mobs[selectedNpcIndex][0],
-        y - mobs[selectedNpcIndex][1],
-      ];
-    }
-  } else if (x <= CANVAS_WIDTH && y >= 0 && y <= tape.length + 1) {
-    const tapeIndex = Math.floor(y);
-    tapeSelectionRange = [tapeIndex];
+}
+
+function getBaseUrl() {
+  if (window.location.protocol === "file:") {
+    return `${window.location.protocol}//${window.location.pathname}?`;
   }
-  drawWave();
-});
-mapElement?.addEventListener("mouseup", function (e) {
-  var x = e.offsetX;
-  var y = e.offsetY;
-  x = Math.floor(x / size);
-  y = Math.floor(y / size);
-  if (tapeSelectionRange?.length === 1) {
-    if (x >= MAP_WIDTH && x <= CANVAS_WIDTH && y >= 0 && y <= CANVAS_HEIGHT) {
-      const endY = Math.min(y + 1, tape.length);
-      tapeSelectionRange = [tapeSelectionRange[0], endY];
+  return `${window.location.protocol}//${window.location.host}/?`;
+}
+
+export function getSpawnUrl(mobSpecs: MobSpec[]) {
+  var url = getBaseUrl();
+  mobSpecs.forEach(([locationX, locationY, mobType, extra]) => {
+    url = url
+      .concat(("00" + locationX).slice(-2))
+      .concat(("00" + locationY).slice(-2))
+      .concat(mobType.toString());
+    if (mobType === MANTICORE && !!extra) {
+      url = url.concat(extra.toString());
     }
+    url = url.concat(".");
+  });
+  if (degen) {
+    url = url.concat(".degeN");
   }
-  draggingNpcIndex = null;
-  draggingNpcOffset = null;
-  drawWave();
-});
-mapElement?.addEventListener("dblclick", function (e) {
-  var x = e.offsetX;
-  var y = e.offsetY;
-  x = Math.floor(x / size);
-  y = Math.floor(y / size);
-  if (x < MAP_WIDTH) {
-    for (var i = 0; i < mobs.length; i++) {
-      if (doesCollide(x, y, 1, mobs[i][0], mobs[i][1], SIZE[mobs[i][2]])) {
-        mobs.splice(i, 1);
-        break;
-      }
-    }
-    drawWave();
-  }
-});
-mapElement?.addEventListener("wheel", function (e) {
-  if (e.deltaY > 0) {
-    step();
-    drawWave();
-  } else {
-    reset();
-    drawWave();
-  }
-});
+  return url;
+}
+
 document.addEventListener("keydown", function (e) {
   switch (e.keyCode) {
     case 38:
@@ -302,68 +365,6 @@ document.addEventListener("keydown", function (e) {
       break;
   }
 });
-mapElement?.addEventListener("mousemove", function (e) {
-  // dragging
-  var x = e.offsetX;
-  var y = e.offsetY;
-  x = Math.floor(x / size);
-  y = Math.floor(y / size);
-  if (x < 0 || x >= MAP_WIDTH || y < 0 || y > MAP_HEIGHT) {
-    return;
-  }
-  var mouseIcon = "auto";
-  var dirty = false;
-  var wasMousedOverNpc = mousedOverNpc;
-  mousedOverNpc = null;
-  for (var i = 0; i < mobs.length; i++) {
-    if (doesCollide(x, y, 1, mobs[i][0], mobs[i][1], SIZE[mobs[i][2]])) {
-      mouseIcon = "move";
-      mousedOverNpc = i;
-      break;
-    }
-  }
-  dirty ||= mousedOverNpc !== wasMousedOverNpc;
-
-  mapElement!.style.cursor = mouseIcon;
-  if (e.buttons & 0x1) {
-    if (draggingNpcIndex !== null && draggingNpcOffset !== null) {
-      mobs[draggingNpcIndex][0] = x - draggingNpcOffset[0];
-      mobs[draggingNpcIndex][1] = y - draggingNpcOffset[1];
-      mobs[draggingNpcIndex][3] = x - draggingNpcOffset[0];
-      mobs[draggingNpcIndex][4] = y - draggingNpcOffset[1];
-    } else if (mode > 0) {
-      selected[0] = x;
-      selected[1] = y;
-    }
-    dirty = true;
-  }
-  if (dirty) {
-    drawWave();
-  }
-});
-function getBaseUrl() {
-  if (window.location.protocol === "file:") {
-    return `${window.location.protocol}//${window.location.pathname}?`;
-  }
-  return `${window.location.protocol}//${window.location.host}/?`;
-}
-export function getSpawnUrl(mobSpecs: MobSpec[]) {
-  var url = getBaseUrl();
-  mobSpecs.forEach(([locationX, locationY, mobType, extra]) => {
-    url = url
-      .concat(("00" + locationX).slice(-2))
-      .concat(("00" + locationY).slice(-2))
-      .concat(mobType.toString());
-    if (mobType === MANTICORE && !!extra) {
-      url = url.concat(extra.toString());
-    }
-    url = url.concat(".");
-  });
-  if (degen) {
-    url = url.concat(".degeN");
-  }
-  return url;
-}
 
 const getMobSpec = (mob: Mob): MobSpec =>
   [mob[0], mob[1], mob[2], mob[6]] as MobSpec;
@@ -387,10 +388,7 @@ export function copyReplayURL() {
     upperBoundInclusive = Math.min(tape.length, MAX_EXPORT_LENGTH);
   }
   var mobTicks = tape.slice(lowerBound, upperBoundInclusive);
-  var playerTicks = playerTape.slice(
-    lowerBound,
-    upperBoundInclusive
-  );
+  var playerTicks = playerTape.slice(lowerBound, upperBoundInclusive);
 
   // get the mob positions/specs at the start of the selection
   const mobSpecs = mobTicks[0].map(
@@ -439,25 +437,13 @@ function encodeCoordinate(coords: Coordinates) {
 function decodeCoordinates(coords: number): Coordinates {
   return [coords & 0xff, (coords >> 8) & 0xff];
 }
-function toggleSpawns() {
-  showSpawns = !showSpawns;
-  drawWave();
-}
 function togglePlayerLoS() {
   showPlayerLoS = !showPlayerLoS;
-  drawWave();
-}
-function toggleZukSpots() {
-  showZukSpots = !showZukSpots;
   drawWave();
 }
 function toggleNS() {
   mapElement?.classList.toggle("south");
   degen = !degen;
-  drawWave();
-}
-function toggleChecker() {
-  checker = !checker;
   drawWave();
 }
 function isPillar(x: number, y: number) {
@@ -489,8 +475,8 @@ function hasLOS(
   r = 1,
   isNPC = false
 ) {
-  let dx = x2 - x1;
-  let dy = y2 - y1;
+  const dx = x2 - x1;
+  const dy = y2 - y1;
   if (
     isPillar(x1, y1) ||
     isPillar(x2, y2) ||
@@ -510,27 +496,27 @@ function hasLOS(
     var ty = Math.max(y1 - s + 1, Math.min(y1, y2));
     return hasLOS(x2, y2, tx, ty, 1, r, false);
   }
-  let dxAbs = Math.abs(dx);
-  let dyAbs = Math.abs(dy);
+  const dxAbs = Math.abs(dx);
+  const dyAbs = Math.abs(dy);
   if (dxAbs > r || dyAbs > r) {
     return false;
   } //iFreedive
   if (dxAbs > dyAbs) {
     let xTile = x1;
     let y = (y1 << 16) + 0x8000;
-    let slope = Math.trunc((dy << 16) / dxAbs); // Integer division
-    let xInc = dx > 0 ? 1 : -1;
+    const slope = Math.trunc((dy << 16) / dxAbs); // Integer division
+    const xInc = dx > 0 ? 1 : -1;
     if (dy < 0) {
       y -= 1; // For correct rounding
     }
     while (xTile !== x2) {
       xTile += xInc;
-      let yTile = y >>> 16;
+      const yTile = y >>> 16;
       if (isPillar(xTile, yTile)) {
         return false;
       }
       y += slope;
-      let newYTile = y >>> 16;
+      const newYTile = y >>> 16;
       if (newYTile !== yTile && isPillar(xTile, newYTile)) {
         return false;
       }
@@ -538,19 +524,19 @@ function hasLOS(
   } else {
     let yTile = y1;
     let x = (x1 << 16) + 0x8000;
-    let slope = Math.trunc((dx << 16) / dyAbs); // Integer division
-    let yInc = dy > 0 ? 1 : -1;
+    const slope = Math.trunc((dx << 16) / dyAbs); // Integer division
+    const yInc = dy > 0 ? 1 : -1;
     if (dx < 0) {
       x -= 1; // For correct rounding
     }
     while (yTile !== y2) {
       yTile += yInc;
-      let xTile = x >>> 16;
+      const xTile = x >>> 16;
       if (isPillar(xTile, yTile)) {
         return false;
       }
       x += slope;
-      let newXTile = x >>> 16;
+      const newXTile = x >>> 16;
       if (newXTile !== xTile && isPillar(newXTile, yTile)) {
         return false;
       }
@@ -829,7 +815,7 @@ function updateUi() {
   }
   copyReplayUrlButton.disabled =
     !!replayAuto || tape.length === 0 || tape.length > 32;
-  replayIndicator.innerHTML = !!replay
+  replayIndicator.innerHTML = replay
     ? `<strong><span style="color: #FF0000;">Replay: Tick ${replayTick} / ${replay.length}</span></strong>`
     : "";
 }

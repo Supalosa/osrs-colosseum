@@ -1,4 +1,5 @@
 import "./App.css";
+import { Canvas } from "./Canvas";
 
 function App() {
   return (
@@ -96,11 +97,7 @@ function App() {
           Step
         </button>
       </div>
-      <canvas
-        id="map"
-        onselectstart="return false"
-        oncontextmenu="return false"
-      ></canvas>
+      <Canvas />
       <p className="footer">
         Based on{" "}
         <a href="https://ifreedive-osrs.github.io/">ifreedive's tool</a> which

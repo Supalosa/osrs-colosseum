@@ -25,6 +25,8 @@ export default tseslint.config(
       ],
       // allow `var` for legacy reasons, but we should replace with `let` or `const` eventually
       'no-var': 'off',
+      // LOS logic has some unused functions that we might bring back for Inferno mode
+      'no-unused-vars': 'off',
     },
   },
 )
