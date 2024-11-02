@@ -1,52 +1,59 @@
+import { useRef } from "react";
 import "./App.css";
-import { Canvas } from "./Canvas";
+import { Canvas, CanvasHandle } from "./Canvas";
 
 function App() {
+  const canvas = useRef<CanvasHandle>(null);
+
+  const setMode: CanvasHandle['setMode'] = (...args) => {
+    canvas.current?.setMode(...args);
+  };
+
   return (
     <>
       <div className="frame">
-        <button onclick="remove()">Clear</button>
-        <button onclick="place()">Place NPC</button>
-        <button onclick="setMode(0)" style={{ borderColor: "red" }}>
+        <button onClick={() => canvas.current?.remove()}>Clear</button>
+        <button onClick={() => canvas.current?.place()}>Place NPC</button>
+        <button onClick={() => setMode(0)} style={{ borderColor: "red" }}>
           Player
         </button>
-        <button onclick="setMode(1)" style={{ borderColor: "cyan" }}>
+        <button onClick={() => setMode(1)} style={{ borderColor: "cyan" }}>
           Serpent
         </button>
-        <button onclick="setMode(2)" style={{ borderColor: "lime" }}>
+        <button onClick={() => setMode(2)} style={{ borderColor: "lime" }}>
           Javelin
         </button>
-        <button onclick="setMode(3)" style={{ borderColor: "orange" }}>
+        <button onClick={() => setMode(3)} style={{ borderColor: "orange" }}>
           Jaguar
         </button>
-        <button onclick="setMode(4, 'r')" style={{ borderColor: "purple" }}>
+        <button onClick={() => setMode(4, 'r')} style={{ borderColor: "purple" }}>
           Manti (Range)
         </button>
-        <button onclick="setMode(4, 'm')" style={{ borderColor: "purple" }}>
+        <button onClick={() => setMode(4, 'm')} style={{ borderColor: "purple" }}>
           Manti (Mage)
         </button>
-        <button onclick="setMode(5)" style={{ borderColor: "brown" }}>
+        <button onClick={() => setMode(5)} style={{ borderColor: "brown" }}>
           Minotaur
         </button>
-        <button onclick="setMode(6)" style={{ borderColor: "blue" }}>
+        <button onClick={() => setMode(6)} style={{ borderColor: "blue" }}>
           Shockwave
         </button>
       </div>
       <div className="frame">
         Toggle:
         <button
-          onclick="togglePlayerLoS()"
+          onClick={() => canvas.current?.togglePlayerLoS()}
           aria-label="Show the currently selected unit's Line of Sight"
           data-microtip-position="bottom"
           role="tooltip"
         >
           LoS
         </button>
-        <button onClick="copySpawnURL()">Copy Spawn URL</button>
+        <button onClick={() => canvas.current?.copySpawnURL()}>Copy Spawn URL</button>
         <button
           id="copyReplayUrlButton"
-          disabled="true"
-          onClick="copyReplayURL()"
+          disabled={true}
+          onClick={() => canvas.current?.copyReplayURL()}
           aria-label="Copy the current tick diagram as replay (or select a segment). Max 32 ticks"
           data-microtip-position="bottom"
           role="tooltip"
@@ -80,24 +87,24 @@ function App() {
         <span id="replayIndicator"></span>
         Controls:
         <button
-          onclick="reset(); drawWave();"
+          onClick={() => canvas.current?.reset()}
           title="hotkey: down or mousewheel up"
         >
           &laquo; Reset
         </button>
         <button
-          onclick="toggleAutoReplay()"
+          onClick={() => canvas.current?.toggleAutoReplay()}
           id="replayAutoButton"
-          hidden="true"
+          hidden={true}
         ></button>
         <button
-          onclick="step(); drawWave();"
+          onClick={() => canvas?.current?.step()}
           title="hotkey: up or mousewheel down"
         >
           Step
         </button>
       </div>
-      <Canvas />
+      <Canvas ref={canvas} />
       <p className="footer">
         Based on{" "}
         <a href="https://ifreedive-osrs.github.io/">ifreedive's tool</a> which

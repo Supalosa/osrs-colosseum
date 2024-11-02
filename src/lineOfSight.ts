@@ -95,7 +95,8 @@ function doAutoTick() {
   step();
   drawWave();
 }
-function toggleAutoReplay() {
+
+export function toggleAutoReplay() {
   if (replayAuto) {
     clearTimeout(replayAuto);
     replayAuto = null;
@@ -260,7 +261,7 @@ function initDOM(canvas: HTMLCanvasElement) {
   return mapElement;
 }
 
-export function onCanvasLoaded(canvas: HTMLCanvasElement) {
+export function initCanvas(canvas: HTMLCanvasElement) {
   initDOM(canvas);
   var spawn = parent.location.search
     .replace("?", "")
@@ -369,7 +370,7 @@ document.addEventListener("keydown", function (e) {
 const getMobSpec = (mob: Mob): MobSpec =>
   [mob[0], mob[1], mob[2], mob[6]] as MobSpec;
 
-function copySpawnURL() {
+export function copySpawnURL() {
   const mobSpecs = mobs.filter((mob) => mob[2] > 0).map(getMobSpec);
   var url = getSpawnUrl(mobSpecs);
   copyQ(url);
@@ -437,7 +438,7 @@ function encodeCoordinate(coords: Coordinates) {
 function decodeCoordinates(coords: number): Coordinates {
   return [coords & 0xff, (coords >> 8) & 0xff];
 }
-function togglePlayerLoS() {
+export function togglePlayerLoS() {
   showPlayerLoS = !showPlayerLoS;
   drawWave();
 }
@@ -734,7 +735,8 @@ function stopReplay() {
   replayAuto = null;
   updateUi();
 }
-function remove() {
+
+export function remove() {
   mobs = [];
   stopReplay();
   const url = new URL(window.location.href);
@@ -1137,29 +1139,3 @@ export function _setSelected(
 export function _getMobs() {
   return mobs;
 }
-
-// make these available to the buttons (not how I'd choose to do this...)
-declare global {
-  interface Window {
-    remove: typeof remove;
-    setMode: typeof setMode;
-    place: typeof place;
-    togglePlayerLoS: typeof togglePlayerLoS;
-    copySpawnURL: typeof copySpawnURL;
-    copyReplayURL: typeof copyReplayURL;
-    step: typeof step;
-    reset: typeof reset;
-    drawWave: typeof drawWave;
-    toggleAutoReplay: typeof toggleAutoReplay;
-  }
-}
-window.remove = remove;
-window.setMode = setMode;
-window.place = place;
-window.togglePlayerLoS = togglePlayerLoS;
-window.copySpawnURL = copySpawnURL;
-window.copyReplayURL = copyReplayURL;
-window.step = step;
-window.reset = reset;
-window.drawWave = drawWave;
-window.toggleAutoReplay = toggleAutoReplay;
