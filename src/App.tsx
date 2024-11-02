@@ -3,10 +3,14 @@ import "./App.css";
 import { Canvas, CanvasHandle } from "./Canvas";
 
 function App() {
+  const [isDragging, setDragging] = useState(false);
+
   const [firstAttackDelayed, setFirstAttackDelayed] = useState(false);
   const [showVenatorBounce, setShowVenatorBounce] = useState(false);
 
-  const [currentReplayLength, setCurrentReplayLength] = useState<number | null>(null);
+  const [currentReplayLength, setCurrentReplayLength] = useState<number | null>(
+    null
+  );
   const [isReplaying, setIsReplaying] = useState(false);
   const [canSaveReplay, setCanSaveReplay] = useState(false);
   const [replayTick, setReplayTick] = useState(0);
@@ -15,41 +19,80 @@ function App() {
 
   const setMode: CanvasHandle["setMode"] = (...args) => {
     canvas.current?.setMode(...args);
+    setDragging(true);
+  };
+
+  const handleMaybeDrop = () => {
+    if (isDragging) {
+      canvas.current?.place();
+    }
+    setDragging(false);
+  }
+
+  const stopDragging = (e: React.MouseEvent) => {
+    setDragging(false);
+    e.preventDefault();
   };
 
   return (
     <>
-      <div className="frame">
+      <div className="frame" onMouseUp={stopDragging}>
         <button onClick={() => canvas.current?.remove()}>Clear</button>
         <button onClick={() => canvas.current?.place()}>Place NPC</button>
-        <button onClick={() => setMode(0)} style={{ borderColor: "red" }}>
+        <button
+          onMouseDown={() => setMode(0)}
+          onMouseUp={stopDragging}
+          style={{ borderColor: "red" }}
+        >
           Player
         </button>
-        <button onClick={() => setMode(1)} style={{ borderColor: "cyan" }}>
+        <button
+          onMouseDown={() => setMode(1)}
+          onMouseUp={stopDragging}
+          style={{ borderColor: "cyan" }}
+        >
           Serpent
         </button>
-        <button onClick={() => setMode(2)} style={{ borderColor: "lime" }}>
+        <button
+          onMouseDown={() => setMode(2)}
+          onMouseUp={stopDragging}
+          style={{ borderColor: "lime" }}
+        >
           Javelin
         </button>
-        <button onClick={() => setMode(3)} style={{ borderColor: "orange" }}>
+        <button
+          onMouseDown={() => setMode(3)}
+          onMouseUp={stopDragging}
+          style={{ borderColor: "orange" }}
+        >
           Jaguar
         </button>
         <button
-          onClick={() => setMode(4, "r")}
+          onMouseDown={() => setMode(4, "r")}
+          onMouseUp={stopDragging}
           style={{ borderColor: "purple" }}
         >
           Manti (Range)
         </button>
         <button
-          onClick={() => setMode(4, "m")}
+          onMouseDown={() => setMode(4, "m")}
+          onMouseUp={stopDragging}
           style={{ borderColor: "purple" }}
         >
           Manti (Mage)
         </button>
-        <button onClick={() => setMode(5)} style={{ borderColor: "brown" }}>
+        <button
+          onMouseDown={() => setMode(5)}
+          onMouseUp={stopDragging}
+          style={{ borderColor: "brown" }}
+        >
           Minotaur
         </button>
-        <button onClick={() => setMode(6)} style={{ borderColor: "blue" }}>
+        <button
+          onMouseDown={() => setMode(6)}
+          onMouseUp={stopDragging}
+          style={{ borderColor: "blue" }}
+        >
           Shockwave
         </button>
       </div>
@@ -103,7 +146,7 @@ function App() {
         <span id="replayIndicator">
           {currentReplayLength ? (
             <strong>
-              <span style={{color: '#FF0000'}}>
+              <span style={{ color: "#FF0000" }}>
                 Replay: Tick {replayTick} / {currentReplayLength}
               </span>
             </strong>
@@ -140,6 +183,7 @@ function App() {
         }
         onIsReplayingChanged={setIsReplaying}
         onReplayTickChanged={setReplayTick}
+        onMouseUp={handleMaybeDrop}
       />
       <p className="footer">
         Based on{" "}

@@ -65,8 +65,9 @@ var mode = 0;
 // only used for manticore at the moment
 var modeExtra: MobExtra = null;
 var degen = false;
-var b5Tile = [5, 15];
-var selected = [...b5Tile];
+const b5Tile = [5, 15] as const;
+var cursorLocation: Coordinates | null = [...b5Tile];
+var selected: Coordinates = [...b5Tile];
 var mobs: Mob[] = [];
 var showSpawns = true;
 var showPlayerLoS = true;
@@ -124,11 +125,11 @@ const CANVAS_HEIGHT = size * MAP_HEIGHT;
 
 export const setFirstAttackDelayed = (delayed: boolean) => {
   delayFirstAttack = delayed;
-}
+};
 
 export const setShowVenatorBounce = (show: boolean) => {
   showVenatorBounce = show;
-}
+};
 
 export const handleKeyDown = function (e: KeyboardEvent) {
   switch (e.keyCode) {
@@ -138,36 +139,12 @@ export const handleKeyDown = function (e: KeyboardEvent) {
     case 40:
       reset();
       break;
-    case 81:
-      setMode(1);
-      place();
-      break;
-    case 87:
-      setMode(2);
-      place();
-      break;
-    case 69:
-      setMode(5);
-      place();
-      break;
-    case 82:
-      setMode(6);
-      place();
-      break;
-    case 84:
-      setMode(7);
-      place();
-      break;
-    case 85:
-      setMode(4);
-      place();
-      break;
   }
 };
 
-export const onCanvasMouseDown = function (e: MouseEvent) {
-  var x = e.offsetX;
-  var y = e.offsetY;
+export const onCanvasMouseDown = function (e: React.MouseEvent) {
+  var x = e.nativeEvent.offsetX;
+  var y = e.nativeEvent.offsetY;
   var selectedNpcIndex = null;
   x = Math.floor(x / size);
   y = Math.floor(y / size);
@@ -182,8 +159,8 @@ export const onCanvasMouseDown = function (e: MouseEvent) {
       }
     }
     if (selectedNpcIndex === null) {
-      selected[0] = x;
-      selected[1] = y;
+      selected = [x, y];
+      cursorLocation = [x, y];
     } else {
       // start drag
       draggingNpcIndex = selectedNpcIndex;
@@ -191,17 +168,18 @@ export const onCanvasMouseDown = function (e: MouseEvent) {
         x - mobs[selectedNpcIndex][0],
         y - mobs[selectedNpcIndex][1],
       ];
+      cursorLocation = null;
     }
   } else if (x <= CANVAS_WIDTH && y >= 0 && y <= tape.length + 1) {
     const tapeIndex = Math.floor(y);
     tapeSelectionRange = [tapeIndex];
   }
   drawWave();
-}
+};
 
-export const onCanvasMouseUp = function (e: MouseEvent) {
-  var x = e.offsetX;
-  var y = e.offsetY;
+export const onCanvasMouseUp = function (e: React.MouseEvent) {
+  var x = e.nativeEvent.offsetX;
+  var y = e.nativeEvent.offsetY;
   x = Math.floor(x / size);
   y = Math.floor(y / size);
   if (tapeSelectionRange?.length === 1) {
@@ -213,25 +191,25 @@ export const onCanvasMouseUp = function (e: MouseEvent) {
   draggingNpcIndex = null;
   draggingNpcOffset = null;
   drawWave();
-}
+};
 
-export const onCanvasDblClick = function (e: MouseEvent) {
-  var x = e.offsetX;
-  var y = e.offsetY;
+export const onCanvasDblClick = function (e: React.MouseEvent) {
+  var x = e.nativeEvent.offsetX;
+  var y = e.nativeEvent.offsetY;
   x = Math.floor(x / size);
   y = Math.floor(y / size);
   if (x < MAP_WIDTH) {
     for (var i = 0; i < mobs.length; i++) {
       if (doesCollide(x, y, 1, mobs[i][0], mobs[i][1], SIZE[mobs[i][2]])) {
-        mobs.splice(i, 1);
+        removeMob(i);
         break;
       }
     }
     drawWave();
   }
-}
+};
 
-export const onCanvasMouseWheel = function (e: WheelEvent) {
+export const onCanvasMouseWheel = function (e: React.WheelEvent) {
   if (e.deltaY > 0) {
     step();
     drawWave();
@@ -239,12 +217,21 @@ export const onCanvasMouseWheel = function (e: WheelEvent) {
     reset();
     drawWave();
   }
+};
+
+export const onCanvasMouseOut = function () {
+    // delete dragged npc if out of map
+    if (draggingNpcIndex !== null) {
+      removeMob(draggingNpcIndex);
+      draggingNpcIndex = null;
+      drawWave();
+    }
 }
 
-export const onCanvasMouseMove =  function (e: MouseEvent) {
+export const onCanvasMouseMove = function (e: React.MouseEvent) {
   // dragging
-  var x = e.offsetX;
-  var y = e.offsetY;
+  var x = e.nativeEvent.offsetX;
+  var y = e.nativeEvent.offsetY;
   x = Math.floor(x / size);
   y = Math.floor(y / size);
   if (x < 0 || x >= MAP_WIDTH || y < 0 || y > MAP_HEIGHT) {
@@ -265,21 +252,25 @@ export const onCanvasMouseMove =  function (e: MouseEvent) {
 
   mapElement!.style.cursor = mouseIcon;
   if (e.buttons & 0x1) {
+    // holding left button
     if (draggingNpcIndex !== null && draggingNpcOffset !== null) {
       mobs[draggingNpcIndex][0] = x - draggingNpcOffset[0];
       mobs[draggingNpcIndex][1] = y - draggingNpcOffset[1];
       mobs[draggingNpcIndex][3] = x - draggingNpcOffset[0];
       mobs[draggingNpcIndex][4] = y - draggingNpcOffset[1];
+      cursorLocation = null;
     } else if (mode > 0) {
-      selected[0] = x;
-      selected[1] = y;
+      cursorLocation = [x, y];
+    } else {
+      cursorLocation = [x, y];
+      selected = [x, y];
     }
     dirty = true;
   }
   if (dirty) {
     drawWave();
   }
-}
+};
 
 function initDOM(canvas: HTMLCanvasElement) {
   mapElement = canvas;
@@ -459,6 +450,14 @@ function isPillar(x: number, y: number) {
   }
   return isPillar;
 }
+
+function removeMob(index: number) {
+  mobs.splice(index, 1);
+  tape = tape.map((entries) => {
+    return entries.filter((mobData, i) => i !== index);
+  });
+}
+
 function hasLOS(
   x1: number,
   y1: number,
@@ -592,24 +591,32 @@ function sortMobs() {
   });
 }
 export function place() {
-  if (mode > 0) {
-    //x y mode ox oy cooldown extra
-    //prevent 2 mobs on same tile
-    for (var i = 0; i < mobs.length; i++) {
-      if (mobs[i][3] == selected[0] && mobs[i][4] == selected[1]) {
-        return;
+  if (cursorLocation) {
+    if (mode > 0) {
+      //x y mode ox oy cooldown extra
+      //prevent 2 mobs on same tile
+      for (var i = 0; i < mobs.length; i++) {
+        if (
+          mobs[i][3] == cursorLocation[0] &&
+          mobs[i][4] == cursorLocation[1]
+        ) {
+          return;
+        }
       }
+      mobs.push([
+        cursorLocation[0],
+        cursorLocation[1],
+        mode,
+        cursorLocation[0],
+        cursorLocation[1],
+        0,
+        modeExtra,
+      ]);
+      sortMobs();
+    } else {
+      selected = [...cursorLocation];
     }
-    mobs.push([
-      selected[0],
-      selected[1],
-      mode,
-      selected[0],
-      selected[1],
-      0,
-      modeExtra,
-    ]);
-    sortMobs();
+    cursorLocation = null;
   }
   mode = 0;
   modeExtra = null;
@@ -764,6 +771,11 @@ export function reset() {
 }
 
 export function setMode(m: number, extra?: MobExtra) {
+  // place current monster if not in "player" mode
+  if (mode > 0) {
+    place();
+  }
+  cursorLocation = null;
   mode = m;
   modeExtra = extra ?? null;
   drawWave();
@@ -804,20 +816,25 @@ export type LoSListener = {
   onIsReplayingChanged: (isReplaying: boolean) => void;
   onCanSaveReplayChanged: (canReplay: boolean) => void;
   onReplayTickChanged: (tick: number) => void;
-}
+};
 
 // currently, only one LoS listener is allowed.
 export const registerLoSListener = (listener: LoSListener) => {
   losListener = listener;
-}
+};
 
 let losListener: LoSListener | null = null;
 
 function updateUi() {
   // currently, we always fire events
   losListener?.onIsReplayingChanged(!!replayAuto);
-  losListener?.onHasReplayChanged(!!replay && replayTick !== null && !!replay[replayTick], replay?.length ?? null);
-  losListener?.onCanSaveReplayChanged(!!replayAuto && tape.length > 0 && tape.length <= 32);
+  losListener?.onHasReplayChanged(
+    !!replay && replayTick !== null && !!replay[replayTick],
+    replay?.length ?? null
+  );
+  losListener?.onCanSaveReplayChanged(
+    !!replayAuto && tape.length > 0 && tape.length <= 32
+  );
   losListener?.onReplayTickChanged(replayTick ?? 0);
 }
 
@@ -916,6 +933,7 @@ export function drawWave() {
     }
   }
   if (draggingNpcIndex !== null) {
+    // currently dragging an NPC, draw its LOS
     const t = mobs[draggingNpcIndex][2];
     drawLOS(
       mobs[draggingNpcIndex][0],
@@ -936,17 +954,17 @@ export function drawWave() {
         MINOTAUR_HEAL_COLOR
       );
     }
-  } else {
-    // currently dragging an NPC, draw its LOS
+  } else if (cursorLocation) {
+    // currently placing an NPC, draw its LOS
     var s = SIZE[mode];
     var r = RANGE[mode];
-    drawLOS(selected[0], selected[1], s, r, mode > 0, colors[mode]);
+    drawLOS(cursorLocation[0], cursorLocation[1], s, r, mode > 0, colors[mode]);
 
     // draw minotaur line-of-sight (from center tile as if it were a player)
     if (mode === MINOTAUR) {
       drawLOS(
-        selected[0] + 1,
-        selected[1] - 1,
+        cursorLocation[0] + 1,
+        cursorLocation[1] - 1,
         1,
         MINOTAUR_HEAL_RANGE,
         false,
@@ -954,26 +972,47 @@ export function drawWave() {
       );
     }
   }
-  var c = colors[mode];
-  var s = SIZE[mode];
-  var r = RANGE[mode];
+
+  var c = colors[0];
+  var s = SIZE[0];
+  var r = RANGE[0];
   ctx.fillStyle = ctx.strokeStyle = c;
-  if (mode < 8) {
+  ctx.fillRect(
+    selected[0] * size,
+    (selected[1] + 1) * size,
+    1 * size,
+    -1 * size
+  );
+  ctx.strokeRect(
+    selected[0] * size,
+    (selected[1] + 1) * size,
+    s * size,
+    -s * size
+  );
+
+  if (cursorLocation) {
+    var c = colors[mode];
+    var s = SIZE[mode];
+    var r = RANGE[mode];
+    ctx.globalAlpha = 0.75;
+    ctx.fillStyle = ctx.strokeStyle = c;
     ctx.fillRect(
-      selected[0] * size,
-      (selected[1] + 1) * size,
+      cursorLocation[0] * size,
+      (cursorLocation[1] + 1) * size,
       1 * size,
       -1 * size
     );
     ctx.strokeRect(
-      selected[0] * size,
-      (selected[1] + 1) * size,
+      cursorLocation[0] * size,
+      (cursorLocation[1] + 1) * size,
       s * size,
       -s * size
     );
+    ctx.globalAlpha = 1;
   }
   var current_i = new Image();
-  if (mode > 0) {
+  if (cursorLocation && mode > 0) {
+    // draw image for anything that's not a player
     if (mapElement.classList.contains("south")) {
       current_i.src = img_sources[mode];
     } else {
@@ -981,15 +1020,15 @@ export function drawWave() {
     }
     ctx.drawImage(
       current_i,
-      selected[0] * size,
-      (selected[1] - s + 1) * size,
+      cursorLocation[0] * size,
+      (cursorLocation[1] - s + 1) * size,
       SIZE[mode] * size,
       SIZE[mode] * size
     );
-  }
-  if (mode === MANTICORE && modeExtra) {
-    const colorPattern = MANTICORE_PATTERNS[modeExtra];
-    drawManticorePattern(colorPattern, selected[0], selected[1]);
+    if (mode === MANTICORE && modeExtra) {
+      const colorPattern = MANTICORE_PATTERNS[modeExtra];
+      drawManticorePattern(colorPattern, cursorLocation[0], cursorLocation[1]);
+    }
   }
   // ticker tape
   var offset = MAP_WIDTH * size;
@@ -1089,11 +1128,7 @@ export function drawWave() {
       ctx.lineWidth = 1;
     }
 
-    if (
-      showVenatorBounce &&
-      mousedOverNpc !== null &&
-      mousedOverNpc !== i
-    ) {
+    if (showVenatorBounce && mousedOverNpc !== null && mousedOverNpc !== i) {
       // venator bounce candidate
       ctx.strokeStyle = "#ff69b4";
       ctx.lineWidth = 5;
@@ -1132,6 +1167,7 @@ export function _setSelected(
   _extra: MobExtra | null = null
 ) {
   selected = s;
+  cursorLocation = s;
   mode = _mode;
   modeExtra = _extra;
 }

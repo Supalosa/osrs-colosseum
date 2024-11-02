@@ -1,10 +1,11 @@
 import React, { useEffect, useImperativeHandle, useRef } from "react";
 
-import { step, toggleAutoReplay, setMode, remove, place, togglePlayerLoS, copySpawnURL, copyReplayURL, reset, initCanvas, onCanvasDblClick, onCanvasMouseWheel, onCanvasMouseDown, onCanvasMouseUp, onCanvasMouseMove, setFirstAttackDelayed, setShowVenatorBounce, handleKeyDown, LoSListener, registerLoSListener, drawWave } from "./lineOfSight";
+import { step, toggleAutoReplay, setMode, remove, place, togglePlayerLoS, copySpawnURL, copyReplayURL, reset, initCanvas, onCanvasDblClick, onCanvasMouseWheel, onCanvasMouseDown, onCanvasMouseUp, onCanvasMouseMove, setFirstAttackDelayed, setShowVenatorBounce, handleKeyDown, LoSListener, registerLoSListener, drawWave, onCanvasMouseOut } from "./lineOfSight";
 
 export type CanvasProps = LoSListener & {
     delayFirstAttack: boolean;
     showVenatorBounce: boolean;
+    onMouseUp: React.MouseEventHandler;
 }
 
 export type CanvasHandle = {
@@ -21,7 +22,7 @@ export type CanvasHandle = {
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>((props, ref) => {
-    const { delayFirstAttack, showVenatorBounce, onHasReplayChanged,  onIsReplayingChanged, onCanSaveReplayChanged, onReplayTickChanged } = props;
+    const { delayFirstAttack, showVenatorBounce, onHasReplayChanged,  onIsReplayingChanged, onCanSaveReplayChanged, onReplayTickChanged, onMouseUp } = props;
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   const eventHandler: LoSListener = {
@@ -36,19 +37,9 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>((props, ref) =
     registerLoSListener(eventHandler);
     initCanvas(canvas);
     document.addEventListener("keydown", handleKeyDown);
-    canvas.addEventListener("mousedown", onCanvasMouseDown);
-    canvas.addEventListener("mouseup", onCanvasMouseUp);
-    canvas.addEventListener("dblclick", onCanvasDblClick);
-    canvas.addEventListener("wheel",  onCanvasMouseWheel);
-    canvas.addEventListener("mousemove", onCanvasMouseMove);
     return () => {
         // cleanup on unmount
         document.removeEventListener("keydown", handleKeyDown);
-        canvas.removeEventListener("mousedown", onCanvasMouseDown);
-        canvas.removeEventListener("mouseup",  onCanvasMouseUp);
-        canvas.removeEventListener("dblclick",  onCanvasDblClick);
-        canvas.removeEventListener("wheel",  onCanvasMouseWheel);
-        canvas.removeEventListener("mousemove", onCanvasMouseMove);
     };
   }, []);
 
@@ -80,6 +71,18 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>((props, ref) =
       id="map"
       onSelect={() => false}
       onContextMenu={() => false}
+      onMouseDown={onCanvasMouseDown}
+      onMouseUp={(e) => {
+        onCanvasMouseUp(e);
+        onMouseUp?.(e);
+      }}
+      onDoubleClick={onCanvasDblClick}
+      onWheel={onCanvasMouseWheel}
+      onMouseMove={onCanvasMouseMove}
+      onMouseOut={onCanvasMouseOut}
+      onDragEnter={(e) => e.preventDefault()}
+      onDragEnd={(e) => e.preventDefault()}
+      onDrag={(e) => e.preventDefault()}
     />
   );
 });
