@@ -1089,7 +1089,7 @@ function drawWave() {
 }
 
 function copyQ(val: string) {
-  var container = document.getElementById("container")!;
+  var container = document.getElementById("root")!;
   var inp = document.createElement("input");
   inp.type = "text";
   container.appendChild(inp);
