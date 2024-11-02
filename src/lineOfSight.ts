@@ -111,7 +111,7 @@ const MAX_EXPORT_LENGTH = 128;
 let manticoreTicksRemaining: { [mobIndex: number]: number } = {};
 
 let mapElement: HTMLCanvasElement | null = null;
-let delayFirstAttack: HTMLInputElement | null = null;
+let delayFirstAttack: boolean = false;
 let showVenatorBounce: HTMLInputElement | null = null;
 let replayAutoButton: HTMLButtonElement | null = null;
 let copyReplayUrlButton: HTMLButtonElement | null = null;
@@ -125,6 +125,9 @@ const TICKER_WIDTH = 9;
 const CANVAS_WIDTH = size * MAP_WIDTH + TICKER_WIDTH * size;
 const CANVAS_HEIGHT = size * MAP_HEIGHT;
 
+export const setFirstAttackDelayed = (delayed: boolean) => {
+  delayFirstAttack = delayed;
+}
 
 export const onCanvasMouseDown = function (e: MouseEvent) {
   var x = e.offsetX;
@@ -247,9 +250,6 @@ function initDOM(canvas: HTMLCanvasElement) {
   ctx = mapElement.getContext("2d");
   mapElement.width = CANVAS_WIDTH;
   mapElement.height = CANVAS_HEIGHT;
-  delayFirstAttack = document.getElementById(
-    "delayFirstAttack"
-  ) as HTMLInputElement;
   showVenatorBounce = document.getElementById(
     "showVenatorBounce"
   ) as HTMLInputElement;
@@ -606,7 +606,7 @@ export function step(draw: boolean = false) {
     }
   }
   if (mode == 0 && mobs.length > 0) {
-    const canAttack = delayFirstAttack?.checked
+    const canAttack = delayFirstAttack
       ? tickCount >= DELAY_FIRST_ATTACK_TICKS
       : true;
     var line: TapeEntry = [];
@@ -969,7 +969,7 @@ function drawWave() {
   var offset = MAP_WIDTH * size;
   const tickerStartY = (idx: number) => size * idx;
   for (var i = 0; i < tape.length; i++) {
-    if (delayFirstAttack?.checked && i < DELAY_FIRST_ATTACK_TICKS) {
+    if (delayFirstAttack && i < DELAY_FIRST_ATTACK_TICKS) {
       ctx.fillStyle = i % 2 == 0 ? "#666" : "#777";
     } else {
       ctx.fillStyle = i % 2 == 0 ? "#ddd" : "#eee";

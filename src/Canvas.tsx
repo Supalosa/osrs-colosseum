@@ -1,6 +1,10 @@
 import React, { useEffect, useImperativeHandle, useRef } from "react";
 
-import { step, toggleAutoReplay, setMode, remove, place, togglePlayerLoS, copySpawnURL, copyReplayURL, reset, initCanvas, onCanvasDblClick, onCanvasMouseWheel, onCanvasMouseDown, onCanvasMouseUp, onCanvasMouseMove } from "./lineOfSight";
+import { step, toggleAutoReplay, setMode, remove, place, togglePlayerLoS, copySpawnURL, copyReplayURL, reset, initCanvas, onCanvasDblClick, onCanvasMouseWheel, onCanvasMouseDown, onCanvasMouseUp, onCanvasMouseMove, setFirstAttackDelayed } from "./lineOfSight";
+
+export type CanvasProps = {
+    delayFirstAttack: boolean;
+}
 
 export type CanvasHandle = {
     step: typeof step,
@@ -50,7 +54,8 @@ const handleKeyDown = function (e: KeyboardEvent) {
   };
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export const Canvas = React.forwardRef<CanvasHandle, {}>((props, ref) => {
+export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>((props, ref) => {
+    const { delayFirstAttack = false } = props;
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   useEffect(() => {
@@ -72,6 +77,10 @@ export const Canvas = React.forwardRef<CanvasHandle, {}>((props, ref) => {
         canvas.removeEventListener("mousemove", onCanvasMouseMove);
     };
   }, []);
+
+  useEffect(() => {
+    setFirstAttackDelayed(delayFirstAttack);
+  }, [delayFirstAttack])
 
   useImperativeHandle(ref, () => ({
     step,

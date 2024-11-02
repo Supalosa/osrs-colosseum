@@ -1,8 +1,10 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import "./App.css";
 import { Canvas, CanvasHandle } from "./Canvas";
+import { setFirstAttackDelayed } from "./lineOfSight";
 
 function App() {
+  const firstAttackDelayed = useState(false);
   const canvas = useRef<CanvasHandle>(null);
 
   const setMode: CanvasHandle['setMode'] = (...args) => {
@@ -64,7 +66,8 @@ function App() {
           <input
             type="checkbox"
             id="delayFirstAttack"
-            value="false"
+            value={firstAttackDelayed ? "true" : "false"}
+            onChange={(e) => setFirstAttackDelayed(e.target.checked)}
             aria-label="NPCs will not attack for 3t after wave start"
             data-microtip-position="bottom"
             role="tooltip"
