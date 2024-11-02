@@ -1,8 +1,8 @@
 import React, { useEffect, useImperativeHandle, useRef } from "react";
 
-import { step, toggleAutoReplay, setMode, remove, place, togglePlayerLoS, copySpawnURL, copyReplayURL, reset, initCanvas, onCanvasDblClick, onCanvasMouseWheel, onCanvasMouseDown, onCanvasMouseUp, onCanvasMouseMove, setFirstAttackDelayed, setShowVenatorBounce, handleKeyDown } from "./lineOfSight";
+import { step, toggleAutoReplay, setMode, remove, place, togglePlayerLoS, copySpawnURL, copyReplayURL, reset, initCanvas, onCanvasDblClick, onCanvasMouseWheel, onCanvasMouseDown, onCanvasMouseUp, onCanvasMouseMove, setFirstAttackDelayed, setShowVenatorBounce, handleKeyDown, LoSListener, registerLoSListener, drawWave } from "./lineOfSight";
 
-export type CanvasProps = {
+export type CanvasProps = LoSListener & {
     delayFirstAttack: boolean;
     showVenatorBounce: boolean;
 }
@@ -21,16 +21,24 @@ export type CanvasHandle = {
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>((props, ref) => {
-    const { delayFirstAttack = false, showVenatorBounce = false } = props;
+    const { delayFirstAttack, showVenatorBounce, onHasReplayChanged,  onIsReplayingChanged, onCanSaveReplayChanged, onReplayTickChanged } = props;
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  const eventHandler: LoSListener = {
+      onHasReplayChanged,
+      onCanSaveReplayChanged,
+      onIsReplayingChanged,
+      onReplayTickChanged,
+  }
 
   useEffect(() => {
     const canvas = canvasRef.current!;
+    registerLoSListener(eventHandler);
     initCanvas(canvas);
     document.addEventListener("keydown", handleKeyDown);
     canvas.addEventListener("mousedown", onCanvasMouseDown);
-    canvas.addEventListener("mouseup",  onCanvasMouseUp);
-    canvas.addEventListener("dblclick",  onCanvasDblClick);
+    canvas.addEventListener("mouseup", onCanvasMouseUp);
+    canvas.addEventListener("dblclick", onCanvasDblClick);
     canvas.addEventListener("wheel",  onCanvasMouseWheel);
     canvas.addEventListener("mousemove", onCanvasMouseMove);
     return () => {
@@ -46,10 +54,12 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>((props, ref) =
 
   useEffect(() => {
     setFirstAttackDelayed(delayFirstAttack);
+    drawWave();
   }, [delayFirstAttack])
 
   useEffect(() => {
     setShowVenatorBounce(showVenatorBounce);
+    drawWave();
   }, [showVenatorBounce]);
 
   useImperativeHandle(ref, () => ({

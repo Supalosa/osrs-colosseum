@@ -113,9 +113,6 @@ let manticoreTicksRemaining: { [mobIndex: number]: number } = {};
 let mapElement: HTMLCanvasElement | null = null;
 let delayFirstAttack: boolean = false;
 let showVenatorBounce: boolean = false;
-let replayAutoButton: HTMLButtonElement | null = null;
-let copyReplayUrlButton: HTMLButtonElement | null = null;
-let replayIndicator: HTMLDivElement | null = null;
 
 var ctx: CanvasRenderingContext2D | null = null;
 var size = 20;
@@ -289,16 +286,6 @@ function initDOM(canvas: HTMLCanvasElement) {
   ctx = mapElement.getContext("2d");
   mapElement.width = CANVAS_WIDTH;
   mapElement.height = CANVAS_HEIGHT;
-  replayAutoButton = document.getElementById(
-    "replayAutoButton"
-  ) as HTMLButtonElement;
-  copyReplayUrlButton = document.getElementById(
-    "copyReplayUrlButton"
-  ) as HTMLButtonElement;
-  replayIndicator = document.getElementById(
-    "replayIndicator"
-  ) as HTMLDivElement;
-  return mapElement;
 }
 
 export function initCanvas(canvas: HTMLCanvasElement) {
@@ -811,27 +798,30 @@ function drawLOS(
   }
   ctx.globalAlpha = 1;
 }
-function updateUi() {
-  if (!replayAutoButton || !copyReplayUrlButton || !replayIndicator) {
-    return;
-  }
-  if (replayAuto) {
-    replayAutoButton.innerHTML = "Pause";
-  } else {
-    replayAutoButton.innerHTML = "Play";
-  }
-  if (replay && replayTick !== null && replay[replayTick]) {
-    replayAutoButton.hidden = false;
-  } else {
-    replayAutoButton.hidden = true;
-  }
-  copyReplayUrlButton.disabled =
-    !!replayAuto || tape.length === 0 || tape.length > 32;
-  replayIndicator.innerHTML = replay
-    ? `<strong><span style="color: #FF0000;">Replay: Tick ${replayTick} / ${replay.length}</span></strong>`
-    : "";
+
+export type LoSListener = {
+  onHasReplayChanged: (hasReplay: boolean, replayLength: number | null) => void;
+  onIsReplayingChanged: (isReplaying: boolean) => void;
+  onCanSaveReplayChanged: (canReplay: boolean) => void;
+  onReplayTickChanged: (tick: number) => void;
 }
-function drawWave() {
+
+// currently, only one LoS listener is allowed.
+export const registerLoSListener = (listener: LoSListener) => {
+  losListener = listener;
+}
+
+let losListener: LoSListener | null = null;
+
+function updateUi() {
+  // currently, we always fire events
+  losListener?.onIsReplayingChanged(!!replayAuto);
+  losListener?.onHasReplayChanged(!!replay && replayTick !== null && !!replay[replayTick], replay?.length ?? null);
+  losListener?.onCanSaveReplayChanged(!!replayAuto && tape.length > 0 && tape.length <= 32);
+  losListener?.onReplayTickChanged(replayTick ?? 0);
+}
+
+export function drawWave() {
   updateUi();
   if (!ctx || !mapElement) {
     return;

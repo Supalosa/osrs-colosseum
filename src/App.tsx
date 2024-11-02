@@ -3,11 +3,17 @@ import "./App.css";
 import { Canvas, CanvasHandle } from "./Canvas";
 
 function App() {
-  const [firstAttackDelayed , setFirstAttackDelayed] = useState(false);
+  const [firstAttackDelayed, setFirstAttackDelayed] = useState(false);
   const [showVenatorBounce, setShowVenatorBounce] = useState(false);
+
+  const [currentReplayLength, setCurrentReplayLength] = useState<number | null>(null);
+  const [isReplaying, setIsReplaying] = useState(false);
+  const [canSaveReplay, setCanSaveReplay] = useState(false);
+  const [replayTick, setReplayTick] = useState(0);
+
   const canvas = useRef<CanvasHandle>(null);
 
-  const setMode: CanvasHandle['setMode'] = (...args) => {
+  const setMode: CanvasHandle["setMode"] = (...args) => {
     canvas.current?.setMode(...args);
   };
 
@@ -28,10 +34,16 @@ function App() {
         <button onClick={() => setMode(3)} style={{ borderColor: "orange" }}>
           Jaguar
         </button>
-        <button onClick={() => setMode(4, 'r')} style={{ borderColor: "purple" }}>
+        <button
+          onClick={() => setMode(4, "r")}
+          style={{ borderColor: "purple" }}
+        >
           Manti (Range)
         </button>
-        <button onClick={() => setMode(4, 'm')} style={{ borderColor: "purple" }}>
+        <button
+          onClick={() => setMode(4, "m")}
+          style={{ borderColor: "purple" }}
+        >
           Manti (Mage)
         </button>
         <button onClick={() => setMode(5)} style={{ borderColor: "brown" }}>
@@ -51,10 +63,12 @@ function App() {
         >
           LoS
         </button>
-        <button onClick={() => canvas.current?.copySpawnURL()}>Copy Spawn URL</button>
+        <button onClick={() => canvas.current?.copySpawnURL()}>
+          Copy Spawn URL
+        </button>
         <button
           id="copyReplayUrlButton"
-          disabled={true}
+          disabled={canSaveReplay}
           onClick={() => canvas.current?.copyReplayURL()}
           aria-label="Copy the current tick diagram as replay (or select a segment). Max 32 ticks"
           data-microtip-position="bottom"
@@ -86,7 +100,15 @@ function App() {
         </div>
       </div>
       <div className="frame">
-        <span id="replayIndicator"></span>
+        <span id="replayIndicator">
+          {currentReplayLength ? (
+            <strong>
+              <span style={{color: '#FF0000'}}>
+                Replay: Tick {replayTick} / {currentReplayLength}
+              </span>
+            </strong>
+          ) : null}
+        </span>
         Controls:
         <button
           onClick={() => canvas.current?.reset()}
@@ -97,8 +119,10 @@ function App() {
         <button
           onClick={() => canvas.current?.toggleAutoReplay()}
           id="replayAutoButton"
-          hidden={true}
-        ></button>
+          hidden={currentReplayLength === null}
+        >
+          {isReplaying ? "Pause" : "Play"}
+        </button>
         <button
           onClick={() => canvas?.current?.step()}
           title="hotkey: up or mousewheel down"
@@ -106,7 +130,17 @@ function App() {
           Step
         </button>
       </div>
-      <Canvas ref={canvas} showVenatorBounce={showVenatorBounce} delayFirstAttack={firstAttackDelayed} />
+      <Canvas
+        ref={canvas}
+        showVenatorBounce={showVenatorBounce}
+        delayFirstAttack={firstAttackDelayed}
+        onCanSaveReplayChanged={setCanSaveReplay}
+        onHasReplayChanged={(hasReplay, replayLength) =>
+          setCurrentReplayLength(replayLength ?? null)
+        }
+        onIsReplayingChanged={setIsReplaying}
+        onReplayTickChanged={setReplayTick}
+      />
       <p className="footer">
         Based on{" "}
         <a href="https://ifreedive-osrs.github.io/">ifreedive's tool</a> which
