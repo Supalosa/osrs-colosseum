@@ -86,7 +86,10 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(
     }, [showVenatorBounce]);
 
     useImperativeHandle(ref, () => ({
-      step,
+      step: () => {
+        step();
+        drawWave();
+      },
       toggleAutoReplay,
       setMode,
       remove,
