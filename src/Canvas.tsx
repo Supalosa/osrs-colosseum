@@ -1,9 +1,10 @@
 import React, { useEffect, useImperativeHandle, useRef } from "react";
 
-import { step, toggleAutoReplay, setMode, remove, place, togglePlayerLoS, copySpawnURL, copyReplayURL, reset, initCanvas, onCanvasDblClick, onCanvasMouseWheel, onCanvasMouseDown, onCanvasMouseUp, onCanvasMouseMove, setFirstAttackDelayed } from "./lineOfSight";
+import { step, toggleAutoReplay, setMode, remove, place, togglePlayerLoS, copySpawnURL, copyReplayURL, reset, initCanvas, onCanvasDblClick, onCanvasMouseWheel, onCanvasMouseDown, onCanvasMouseUp, onCanvasMouseMove, setFirstAttackDelayed, setShowVenatorBounce } from "./lineOfSight";
 
 export type CanvasProps = {
     delayFirstAttack: boolean;
+    showVenatorBounce: boolean;
 }
 
 export type CanvasHandle = {
@@ -55,7 +56,7 @@ const handleKeyDown = function (e: KeyboardEvent) {
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>((props, ref) => {
-    const { delayFirstAttack = false } = props;
+    const { delayFirstAttack = false, showVenatorBounce = false } = props;
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   useEffect(() => {
@@ -81,6 +82,10 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>((props, ref) =
   useEffect(() => {
     setFirstAttackDelayed(delayFirstAttack);
   }, [delayFirstAttack])
+
+  useEffect(() => {
+    setShowVenatorBounce(showVenatorBounce);
+  }, [showVenatorBounce]);
 
   useImperativeHandle(ref, () => ({
     step,

@@ -112,7 +112,7 @@ let manticoreTicksRemaining: { [mobIndex: number]: number } = {};
 
 let mapElement: HTMLCanvasElement | null = null;
 let delayFirstAttack: boolean = false;
-let showVenatorBounce: HTMLInputElement | null = null;
+let showVenatorBounce: boolean = false;
 let replayAutoButton: HTMLButtonElement | null = null;
 let copyReplayUrlButton: HTMLButtonElement | null = null;
 let replayIndicator: HTMLDivElement | null = null;
@@ -127,6 +127,10 @@ const CANVAS_HEIGHT = size * MAP_HEIGHT;
 
 export const setFirstAttackDelayed = (delayed: boolean) => {
   delayFirstAttack = delayed;
+}
+
+export const setShowVenatorBounce = (show: boolean) => {
+  showVenatorBounce = show;
 }
 
 export const onCanvasMouseDown = function (e: MouseEvent) {
@@ -250,9 +254,6 @@ function initDOM(canvas: HTMLCanvasElement) {
   ctx = mapElement.getContext("2d");
   mapElement.width = CANVAS_WIDTH;
   mapElement.height = CANVAS_HEIGHT;
-  showVenatorBounce = document.getElementById(
-    "showVenatorBounce"
-  ) as HTMLInputElement;
   replayAutoButton = document.getElementById(
     "replayAutoButton"
   ) as HTMLButtonElement;
@@ -1064,7 +1065,7 @@ function drawWave() {
     }
 
     if (
-      showVenatorBounce?.checked &&
+      showVenatorBounce &&
       mousedOverNpc !== null &&
       mousedOverNpc !== i
     ) {

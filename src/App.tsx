@@ -1,10 +1,10 @@
 import { useRef, useState } from "react";
 import "./App.css";
 import { Canvas, CanvasHandle } from "./Canvas";
-import { setFirstAttackDelayed } from "./lineOfSight";
 
 function App() {
-  const firstAttackDelayed = useState(false);
+  const [firstAttackDelayed , setFirstAttackDelayed] = useState(false);
+  const [showVenatorBounce, setShowVenatorBounce] = useState(false);
   const canvas = useRef<CanvasHandle>(null);
 
   const setMode: CanvasHandle['setMode'] = (...args) => {
@@ -65,7 +65,6 @@ function App() {
         <div>
           <input
             type="checkbox"
-            id="delayFirstAttack"
             value={firstAttackDelayed ? "true" : "false"}
             onChange={(e) => setFirstAttackDelayed(e.target.checked)}
             aria-label="NPCs will not attack for 3t after wave start"
@@ -77,8 +76,8 @@ function App() {
         <div>
           <input
             type="checkbox"
-            id="showVenatorBounce"
-            value="false"
+            value={showVenatorBounce ? "true" : "false"}
+            onChange={(e) => setShowVenatorBounce(e.target.checked)}
             aria-label="Mouse over an NPC to show nearby NPCs that a Venator bow will bounce to"
             data-microtip-position="bottom"
             role="tooltip"
@@ -107,7 +106,7 @@ function App() {
           Step
         </button>
       </div>
-      <Canvas ref={canvas} />
+      <Canvas ref={canvas} showVenatorBounce={showVenatorBounce} delayFirstAttack={firstAttackDelayed} />
       <p className="footer">
         Based on{" "}
         <a href="https://ifreedive-osrs.github.io/">ifreedive's tool</a> which
