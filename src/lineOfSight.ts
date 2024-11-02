@@ -25,7 +25,7 @@ img_sources.forEach((src, i) => {
   image.src = src;
   image.onload = () => {
     images[i] = image;
-  }
+  };
 });
 
 const colors = ["red", "cyan", "lime", "orange", "purple", "brown", "blue"];
@@ -235,13 +235,13 @@ export const onCanvasMouseWheel = function (e: React.WheelEvent) {
 };
 
 export const onCanvasMouseOut = function () {
-    // delete dragged npc if out of map
-    if (draggingNpcIndex !== null) {
-      removeMob(draggingNpcIndex);
-      draggingNpcIndex = null;
-      drawWave();
-    }
-}
+  // delete dragged npc if out of map
+  if (draggingNpcIndex !== null) {
+    removeMob(draggingNpcIndex);
+    draggingNpcIndex = null;
+    drawWave();
+  }
+};
 
 export const onCanvasMouseMove = function (e: React.MouseEvent) {
   // dragging
@@ -1104,7 +1104,13 @@ export function drawWave() {
       continue;
     }
     if (images[t]) {
-      ctx.drawImage(images[t]!, x * size, (y - s + 1) * size, s * size, s * size);
+      ctx.drawImage(
+        images[t]!,
+        x * size,
+        (y - s + 1) * size,
+        s * size,
+        s * size
+      );
     }
     const mobExtra = mobs[i][6];
     if (t === MANTICORE && mobExtra !== null) {

@@ -27,7 +27,7 @@ function App() {
       canvas.current?.place();
     }
     setDragging(false);
-  }
+  };
 
   const stopDragging = (e: React.MouseEvent) => {
     setDragging(false);
