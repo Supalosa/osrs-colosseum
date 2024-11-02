@@ -133,6 +133,41 @@ export const setShowVenatorBounce = (show: boolean) => {
   showVenatorBounce = show;
 }
 
+export const handleKeyDown = function (e: KeyboardEvent) {
+  switch (e.keyCode) {
+    case 38:
+      step(true);
+      break;
+    case 40:
+      reset();
+      break;
+    case 81:
+      setMode(1);
+      place();
+      break;
+    case 87:
+      setMode(2);
+      place();
+      break;
+    case 69:
+      setMode(5);
+      place();
+      break;
+    case 82:
+      setMode(6);
+      place();
+      break;
+    case 84:
+      setMode(7);
+      place();
+      break;
+    case 85:
+      setMode(4);
+      place();
+      break;
+  }
+};
+
 export const onCanvasMouseDown = function (e: MouseEvent) {
   var x = e.offsetX;
   var y = e.offsetY;
