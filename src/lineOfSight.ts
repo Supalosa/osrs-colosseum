@@ -125,6 +125,123 @@ const TICKER_WIDTH = 9;
 const CANVAS_WIDTH = size * MAP_WIDTH + TICKER_WIDTH * size;
 const CANVAS_HEIGHT = size * MAP_HEIGHT;
 
+
+export const onCanvasMouseDown = function (e: MouseEvent) {
+  var x = e.offsetX;
+  var y = e.offsetY;
+  var selectedNpcIndex = null;
+  x = Math.floor(x / size);
+  y = Math.floor(y / size);
+  if (x < MAP_WIDTH) {
+    if (replay) {
+      stopReplay();
+    }
+    for (var i = 0; i < mobs.length; i++) {
+      if (doesCollide(x, y, 1, mobs[i][0], mobs[i][1], SIZE[mobs[i][2]])) {
+        selectedNpcIndex = i;
+        break;
+      }
+    }
+    if (selectedNpcIndex === null) {
+      selected[0] = x;
+      selected[1] = y;
+    } else {
+      // start drag
+      draggingNpcIndex = selectedNpcIndex;
+      draggingNpcOffset = [
+        x - mobs[selectedNpcIndex][0],
+        y - mobs[selectedNpcIndex][1],
+      ];
+    }
+  } else if (x <= CANVAS_WIDTH && y >= 0 && y <= tape.length + 1) {
+    const tapeIndex = Math.floor(y);
+    tapeSelectionRange = [tapeIndex];
+  }
+  drawWave();
+}
+
+export const onCanvasMouseUp = function (e: MouseEvent) {
+  var x = e.offsetX;
+  var y = e.offsetY;
+  x = Math.floor(x / size);
+  y = Math.floor(y / size);
+  if (tapeSelectionRange?.length === 1) {
+    if (x >= MAP_WIDTH && x <= CANVAS_WIDTH && y >= 0 && y <= CANVAS_HEIGHT) {
+      const endY = Math.min(y + 1, tape.length);
+      tapeSelectionRange = [tapeSelectionRange[0], endY];
+    }
+  }
+  draggingNpcIndex = null;
+  draggingNpcOffset = null;
+  drawWave();
+}
+
+export const onCanvasDblClick = function (e: MouseEvent) {
+  var x = e.offsetX;
+  var y = e.offsetY;
+  x = Math.floor(x / size);
+  y = Math.floor(y / size);
+  if (x < MAP_WIDTH) {
+    for (var i = 0; i < mobs.length; i++) {
+      if (doesCollide(x, y, 1, mobs[i][0], mobs[i][1], SIZE[mobs[i][2]])) {
+        mobs.splice(i, 1);
+        break;
+      }
+    }
+    drawWave();
+  }
+}
+
+export const onCanvasMouseWheel = function (e: WheelEvent) {
+  if (e.deltaY > 0) {
+    step();
+    drawWave();
+  } else {
+    reset();
+    drawWave();
+  }
+}
+
+export const onCanvasMouseMove =  function (e: MouseEvent) {
+  // dragging
+  var x = e.offsetX;
+  var y = e.offsetY;
+  x = Math.floor(x / size);
+  y = Math.floor(y / size);
+  if (x < 0 || x >= MAP_WIDTH || y < 0 || y > MAP_HEIGHT) {
+    return;
+  }
+  var mouseIcon = "auto";
+  var dirty = false;
+  var wasMousedOverNpc = mousedOverNpc;
+  mousedOverNpc = null;
+  for (var i = 0; i < mobs.length; i++) {
+    if (doesCollide(x, y, 1, mobs[i][0], mobs[i][1], SIZE[mobs[i][2]])) {
+      mouseIcon = "move";
+      mousedOverNpc = i;
+      break;
+    }
+  }
+  dirty ||= mousedOverNpc !== wasMousedOverNpc;
+
+  mapElement!.style.cursor = mouseIcon;
+  if (e.buttons & 0x1) {
+    if (draggingNpcIndex !== null && draggingNpcOffset !== null) {
+      mobs[draggingNpcIndex][0] = x - draggingNpcOffset[0];
+      mobs[draggingNpcIndex][1] = y - draggingNpcOffset[1];
+      mobs[draggingNpcIndex][3] = x - draggingNpcOffset[0];
+      mobs[draggingNpcIndex][4] = y - draggingNpcOffset[1];
+    } else if (mode > 0) {
+      selected[0] = x;
+      selected[1] = y;
+    }
+    dirty = true;
+  }
+  if (dirty) {
+    drawWave();
+  }
+}
+
 function initDOM(canvas: HTMLCanvasElement) {
   mapElement = canvas;
   ctx = mapElement.getContext("2d");
@@ -145,124 +262,21 @@ function initDOM(canvas: HTMLCanvasElement) {
   replayIndicator = document.getElementById(
     "replayIndicator"
   ) as HTMLDivElement;
-
-  mapElement.addEventListener("mousedown", function (e) {
-    var x = e.offsetX;
-    var y = e.offsetY;
-    var selectedNpcIndex = null;
-    x = Math.floor(x / size);
-    y = Math.floor(y / size);
-    if (x < MAP_WIDTH) {
-      if (replay) {
-        stopReplay();
-      }
-      for (var i = 0; i < mobs.length; i++) {
-        if (doesCollide(x, y, 1, mobs[i][0], mobs[i][1], SIZE[mobs[i][2]])) {
-          selectedNpcIndex = i;
-          break;
-        }
-      }
-      if (selectedNpcIndex === null) {
-        selected[0] = x;
-        selected[1] = y;
-      } else {
-        // start drag
-        draggingNpcIndex = selectedNpcIndex;
-        draggingNpcOffset = [
-          x - mobs[selectedNpcIndex][0],
-          y - mobs[selectedNpcIndex][1],
-        ];
-      }
-    } else if (x <= CANVAS_WIDTH && y >= 0 && y <= tape.length + 1) {
-      const tapeIndex = Math.floor(y);
-      tapeSelectionRange = [tapeIndex];
-    }
-    drawWave();
-  });
-  mapElement.addEventListener("mouseup", function (e) {
-    var x = e.offsetX;
-    var y = e.offsetY;
-    x = Math.floor(x / size);
-    y = Math.floor(y / size);
-    if (tapeSelectionRange?.length === 1) {
-      if (x >= MAP_WIDTH && x <= CANVAS_WIDTH && y >= 0 && y <= CANVAS_HEIGHT) {
-        const endY = Math.min(y + 1, tape.length);
-        tapeSelectionRange = [tapeSelectionRange[0], endY];
-      }
-    }
-    draggingNpcIndex = null;
-    draggingNpcOffset = null;
-    drawWave();
-  });
-  mapElement.addEventListener("dblclick", function (e) {
-    var x = e.offsetX;
-    var y = e.offsetY;
-    x = Math.floor(x / size);
-    y = Math.floor(y / size);
-    if (x < MAP_WIDTH) {
-      for (var i = 0; i < mobs.length; i++) {
-        if (doesCollide(x, y, 1, mobs[i][0], mobs[i][1], SIZE[mobs[i][2]])) {
-          mobs.splice(i, 1);
-          break;
-        }
-      }
-      drawWave();
-    }
-  });
-  mapElement.addEventListener("wheel", function (e) {
-    if (e.deltaY > 0) {
-      step();
-      drawWave();
-    } else {
-      reset();
-      drawWave();
-    }
-  });
-
-  mapElement.addEventListener("mousemove", function (e) {
-    // dragging
-    var x = e.offsetX;
-    var y = e.offsetY;
-    x = Math.floor(x / size);
-    y = Math.floor(y / size);
-    if (x < 0 || x >= MAP_WIDTH || y < 0 || y > MAP_HEIGHT) {
-      return;
-    }
-    var mouseIcon = "auto";
-    var dirty = false;
-    var wasMousedOverNpc = mousedOverNpc;
-    mousedOverNpc = null;
-    for (var i = 0; i < mobs.length; i++) {
-      if (doesCollide(x, y, 1, mobs[i][0], mobs[i][1], SIZE[mobs[i][2]])) {
-        mouseIcon = "move";
-        mousedOverNpc = i;
-        break;
-      }
-    }
-    dirty ||= mousedOverNpc !== wasMousedOverNpc;
-
-    mapElement!.style.cursor = mouseIcon;
-    if (e.buttons & 0x1) {
-      if (draggingNpcIndex !== null && draggingNpcOffset !== null) {
-        mobs[draggingNpcIndex][0] = x - draggingNpcOffset[0];
-        mobs[draggingNpcIndex][1] = y - draggingNpcOffset[1];
-        mobs[draggingNpcIndex][3] = x - draggingNpcOffset[0];
-        mobs[draggingNpcIndex][4] = y - draggingNpcOffset[1];
-      } else if (mode > 0) {
-        selected[0] = x;
-        selected[1] = y;
-      }
-      dirty = true;
-    }
-    if (dirty) {
-      drawWave();
-    }
-  });
   return mapElement;
 }
 
 export function initCanvas(canvas: HTMLCanvasElement) {
   initDOM(canvas);
+  loadSpawns();
+  drawWave();
+}
+
+let hasLoadedSpawns = false;
+function loadSpawns() {
+  if (hasLoadedSpawns) {
+    return;
+  }
+  hasLoadedSpawns = true;
   var spawn = parent.location.search
     .replace("?", "")
     .split(".")
@@ -296,7 +310,6 @@ export function initCanvas(canvas: HTMLCanvasElement) {
     step();
     replayAuto = setTimeout(() => doAutoTick(), 600);
   }
-  drawWave();
 }
 
 function getBaseUrl() {
@@ -323,49 +336,6 @@ export function getSpawnUrl(mobSpecs: MobSpec[]) {
   }
   return url;
 }
-
-document.addEventListener("keydown", function (e) {
-  switch (e.keyCode) {
-    case 38:
-      step();
-      drawWave();
-      break;
-    case 40:
-      reset();
-      drawWave();
-      break;
-    case 81:
-      mode = 1;
-      place();
-      drawWave();
-      break;
-    case 87:
-      mode = 2;
-      place();
-      drawWave();
-      break;
-    case 69:
-      mode = 5;
-      place();
-      drawWave();
-      break;
-    case 82:
-      mode = 6;
-      place();
-      drawWave();
-      break;
-    case 84:
-      mode = 7;
-      place();
-      drawWave();
-      break;
-    case 85:
-      mode = 4;
-      place();
-      drawWave();
-      break;
-  }
-});
 
 const getMobSpec = (mob: Mob): MobSpec =>
   [mob[0], mob[1], mob[2], mob[6]] as MobSpec;
@@ -622,7 +592,7 @@ export function place() {
   modeExtra = null;
   drawWave();
 }
-export function step() {
+export function step(draw: boolean = false) {
   if (replay && replayTick !== null) {
     if (replay[replayTick]) {
       selected = replay[replayTick];
@@ -718,6 +688,9 @@ export function step() {
     tape.push(line);
   }
   tickCount++;
+  if (draw) {
+    drawWave();
+  }
 }
 function delayAllReadyMantis(ticks: number) {
   mobs
@@ -764,6 +737,7 @@ export function reset() {
   }
   draggingNpcIndex = null;
   draggingNpcOffset = null;
+  drawWave();
 }
 
 export function setMode(m: number, extra?: MobExtra) {
