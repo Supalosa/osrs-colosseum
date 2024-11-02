@@ -16,9 +16,20 @@ const img_sources = [
   "shockwave_colossus.png",
 ];
 
+const images: (HTMLImageElement | null)[] = [];
+img_sources.forEach((src, i) => {
+  if (src.length === 0) {
+    return null;
+  }
+  const image = new Image();
+  image.src = src;
+  image.onload = () => {
+    images[i] = image;
+  }
+});
+
 const colors = ["red", "cyan", "lime", "orange", "purple", "brown", "blue"];
 
-const img_sources_north = img_sources;
 export const MANTICORE = 4;
 const MANTICORE_RANGE_FIRST = "r";
 const MANTICORE_MAGE_FIRST = "m";
@@ -1010,21 +1021,17 @@ export function drawWave() {
     );
     ctx.globalAlpha = 1;
   }
-  var current_i = new Image();
   if (cursorLocation && mode > 0) {
     // draw image for anything that's not a player
-    if (mapElement.classList.contains("south")) {
-      current_i.src = img_sources[mode];
-    } else {
-      current_i.src = img_sources_north[mode];
+    if (images[mode]) {
+      ctx.drawImage(
+        images[mode]!,
+        cursorLocation[0] * size,
+        (cursorLocation[1] - s + 1) * size,
+        SIZE[mode] * size,
+        SIZE[mode] * size
+      );
     }
-    ctx.drawImage(
-      current_i,
-      cursorLocation[0] * size,
-      (cursorLocation[1] - s + 1) * size,
-      SIZE[mode] * size,
-      SIZE[mode] * size
-    );
     if (mode === MANTICORE && modeExtra) {
       const colorPattern = MANTICORE_PATTERNS[modeExtra];
       drawManticorePattern(colorPattern, cursorLocation[0], cursorLocation[1]);
@@ -1089,13 +1096,9 @@ export function drawWave() {
       // player
       continue;
     }
-    var mob_i = new Image();
-    if (mapElement.classList.contains("south")) {
-      mob_i.src = img_sources[t];
-    } else {
-      mob_i.src = img_sources_north[t];
+    if (images[t]) {
+      ctx.drawImage(images[t]!, x * size, (y - s + 1) * size, s * size, s * size);
     }
-    ctx.drawImage(mob_i, x * size, (y - s + 1) * size, s * size, s * size);
     const mobExtra = mobs[i][6];
     if (t === MANTICORE && mobExtra !== null) {
       const colorPattern = MANTICORE_PATTERNS[mobExtra];
