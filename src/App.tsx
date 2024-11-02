@@ -1,6 +1,8 @@
-import { useRef, useState } from "react";
+import { CSSProperties, useRef, useState } from "react";
 import "./App.css";
 import { Canvas, CanvasHandle } from "./Canvas";
+import { MobType, MobExtra } from "./types";
+import { ManticoreOverlay } from "./ManticoreOverlay";
 
 function App() {
   const [isDragging, setDragging] = useState(false);
@@ -32,6 +34,50 @@ function App() {
   const stopDragging = (e: React.MouseEvent) => {
     setDragging(false);
     e.preventDefault();
+    e.stopPropagation();
+  };
+
+  type UnitButtonProps = {
+    mode: MobType;
+    extra?: MobExtra;
+    image: string;
+    overlay?: React.ReactNode;
+    borderColor: CSSProperties["color"];
+    tooltip: string;
+    width?: number;
+    height?: number;
+  };
+
+  const UnitButton = ({
+    mode,
+    extra = null,
+    image,
+    overlay = null,
+    borderColor,
+    tooltip,
+    width = 64,
+    height = 64,
+  }: UnitButtonProps) => {
+    return (
+      <button
+        className="UnitButton"
+        onMouseDown={(e) => {
+          setMode(mode, extra);
+          e.preventDefault();
+        }}
+        onClick={(e) => {
+          setMode(mode, extra, true);
+          stopDragging(e);
+        }}
+        style={{ borderColor, width, height, textAlign: "center", padding: 0 }}
+        aria-label={tooltip}
+        data-microtip-position="bottom"
+        role="tooltip"
+      >
+        {overlay && <div className="overlay">{overlay}</div>}
+        <img src={image} height="56" draggable="false" />
+      </button>
+    );
   };
 
   return (
@@ -39,62 +85,58 @@ function App() {
       <div className="frame" onMouseUp={stopDragging}>
         <button onClick={() => canvas.current?.remove()}>Clear</button>
         <button onClick={() => canvas.current?.place()}>Place NPC</button>
-        <button
-          onMouseDown={() => setMode(0)}
-          onMouseUp={stopDragging}
-          style={{ borderColor: "red" }}
-        >
-          Player
-        </button>
-        <button
-          onMouseDown={() => setMode(1)}
-          onMouseUp={stopDragging}
-          style={{ borderColor: "cyan" }}
-        >
-          Serpent
-        </button>
-        <button
-          onMouseDown={() => setMode(2)}
-          onMouseUp={stopDragging}
-          style={{ borderColor: "lime" }}
-        >
-          Javelin
-        </button>
-        <button
-          onMouseDown={() => setMode(3)}
-          onMouseUp={stopDragging}
-          style={{ borderColor: "orange" }}
-        >
-          Jaguar
-        </button>
-        <button
-          onMouseDown={() => setMode(4, "r")}
-          onMouseUp={stopDragging}
-          style={{ borderColor: "purple" }}
-        >
-          Manti (Range)
-        </button>
-        <button
-          onMouseDown={() => setMode(4, "m")}
-          onMouseUp={stopDragging}
-          style={{ borderColor: "purple" }}
-        >
-          Manti (Mage)
-        </button>
-        <button
-          onMouseDown={() => setMode(5)}
-          onMouseUp={stopDragging}
-          style={{ borderColor: "brown" }}
-        >
-          Minotaur
-        </button>
-        <button
-          onMouseDown={() => setMode(6)}
-          onMouseUp={stopDragging}
-          style={{ borderColor: "blue" }}
-        >
-          Shockwave
-        </button>
+        <UnitButton
+          mode={0}
+          image="./player.png"
+          borderColor="red"
+          tooltip="Place the Player by dragging onto the map."
+        />
+        <UnitButton
+          mode={1}
+          image="./serpent_shaman.png"
+          borderColor="cyan"
+          tooltip="Place a Serpent Shaman by dragging onto the map."
+        />
+        <UnitButton
+          mode={2}
+          image="./javelin_colossus.png"
+          borderColor="lime"
+          tooltip="Place a Serpent Shaman by dragging onto the map."
+        />
+        <UnitButton
+          mode={3}
+          image="./jaguar_warrior.png"
+          borderColor="orange"
+          tooltip="Place a Jaguar Warrior by dragging onto the map."
+        />
+        <UnitButton
+          mode={4}
+          extra="r"
+          overlay={<ManticoreOverlay order={["range", "mage", "melee"]} />}
+          image="./manticore.png"
+          borderColor="purple"
+          tooltip="Place a Manticore (range first) by dragging onto the map."
+        />
+        <UnitButton
+          mode={4}
+          extra="m"
+          overlay={<ManticoreOverlay order={["mage", "range", "melee"]} />}
+          image="./manticore.png"
+          borderColor="purple"
+          tooltip="Place a Manticore (mage first) by dragging onto the map."
+        />
+        <UnitButton
+          mode={5}
+          image="./minotaur.png"
+          borderColor="purple"
+          tooltip="Place a Minotaur by dragging onto the map."
+        />
+        <UnitButton
+          mode={6}
+          image="./shockwave_colossus.png"
+          borderColor="purple"
+          tooltip="Place a Shockwave Colossus by dragging onto the map."
+        />
       </div>
       <div className="frame">
         Toggle:

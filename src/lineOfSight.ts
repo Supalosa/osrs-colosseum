@@ -7,7 +7,7 @@ const SIZE = [1, 1, 3, 2, 3, 3, 3];
 const RANGE = [10, 10, 15, 1, 15, 1, 15];
 const CD = [0, 5, 5, 5, 10, 5, 5];
 const img_sources = [
-  "",
+  "player.png",
   "serpent_shaman.png", // 10 range
   "javelin_colossus.png", // 15 range
   "jaguar_warrior.png",
@@ -29,6 +29,8 @@ img_sources.forEach((src, i) => {
 });
 
 const colors = ["red", "cyan", "lime", "orange", "purple", "brown", "blue"];
+
+const MODE_PLAYER = 0;
 
 export const MANTICORE = 4;
 const MANTICORE_RANGE_FIRST = "r";
@@ -77,7 +79,7 @@ var mode = 0;
 var modeExtra: MobExtra = null;
 var degen = false;
 const b5Tile = [5, 15] as const;
-var cursorLocation: Coordinates | null = [...b5Tile];
+var cursorLocation: Coordinates | null = null;
 var selected: Coordinates = [...b5Tile];
 var mobs: Mob[] = [];
 var showSpawns = true;
@@ -170,12 +172,11 @@ export const onCanvasMouseDown = function (e: React.MouseEvent) {
       }
     }
     if (selectedNpcIndex === null) {
-      if (mode === 0) {
+      if (mode === MODE_PLAYER) {
         // move player
         selected = [x, y];
-      } else {
-        cursorLocation = [x, y];
       }
+      cursorLocation = [x, y];
     } else {
       // start drag
       draggingNpcIndex = selectedNpcIndex;
@@ -274,7 +275,7 @@ export const onCanvasMouseMove = function (e: React.MouseEvent) {
       mobs[draggingNpcIndex][3] = x - draggingNpcOffset[0];
       mobs[draggingNpcIndex][4] = y - draggingNpcOffset[1];
       cursorLocation = null;
-    } else if (mode > 0) {
+    } else if (mode > MODE_PLAYER) {
       cursorLocation = [x, y];
     } else {
       cursorLocation = [x, y];
@@ -370,7 +371,7 @@ const getMobSpec = (mob: Mob): MobSpec =>
   [mob[0], mob[1], mob[2], mob[6]] as MobSpec;
 
 export function copySpawnURL() {
-  const mobSpecs = mobs.filter((mob) => mob[2] > 0).map(getMobSpec);
+  const mobSpecs = mobs.filter((mob) => mob[2] > MODE_PLAYER).map(getMobSpec);
   var url = getSpawnUrl(mobSpecs);
   copyQ(url);
   alert("Spawn URL Copied!");
@@ -785,13 +786,8 @@ export function reset() {
   drawWave();
 }
 
-export function setMode(m: number, extra?: MobExtra) {
-  // place current monster if not in "player" mode
-  if (mode > 0) {
-    place();
-    cursorLocation = null;
-  } else {
-    // else, set cursor to current player location to mimic old behaviour
+export function setMode(m: number, extra?: MobExtra, initPosition: boolean = false) {
+  if (initPosition && cursorLocation === null) {
     cursorLocation = [...selected];
   }
   mode = m;
@@ -994,6 +990,8 @@ export function drawWave() {
   var c = colors[0];
   var s = SIZE[0];
   var r = RANGE[0];
+
+  // draw player
   ctx.fillStyle = ctx.strokeStyle = c;
   ctx.fillRect(
     selected[0] * size,
@@ -1007,12 +1005,21 @@ export function drawWave() {
     s * size,
     -s * size
   );
+  if (images[0]) {
+    ctx.drawImage(
+      images[0]!,
+      selected[0] * size,
+      (selected[1] - s + 1) * size,
+      SIZE[0] * size,
+      SIZE[0] * size
+    );
+  }
 
   if (cursorLocation) {
     var c = colors[mode];
     var s = SIZE[mode];
     var r = RANGE[mode];
-    ctx.globalAlpha = 0.75;
+    ctx.globalAlpha = 0.5;
     ctx.fillStyle = ctx.strokeStyle = c;
     ctx.fillRect(
       cursorLocation[0] * size,
@@ -1026,9 +1033,6 @@ export function drawWave() {
       s * size,
       -s * size
     );
-    ctx.globalAlpha = 1;
-  }
-  if (cursorLocation && mode > 0) {
     // draw image for anything that's not a player
     if (images[mode]) {
       ctx.drawImage(
@@ -1043,6 +1047,7 @@ export function drawWave() {
       const colorPattern = MANTICORE_PATTERNS[modeExtra];
       drawManticorePattern(colorPattern, cursorLocation[0], cursorLocation[1]);
     }
+    ctx.globalAlpha = 1;
   }
   // ticker tape
   var offset = MAP_WIDTH * size;
