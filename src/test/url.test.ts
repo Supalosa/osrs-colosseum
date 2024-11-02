@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { MANTICORE, getReplayURL, getSpawnUrl } from "../main";
+import { MANTICORE, getReplayURL, getSpawnUrl } from "../lineOfSight";
 import { createMob } from "./utils";
 
 describe("url tests", () => {

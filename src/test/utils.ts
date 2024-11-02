@@ -1,6 +1,6 @@
 import { expect } from "vitest";
 import { Mob, MobExtra, MobSpec } from "../types";
-import { _getMobs } from "../main";
+import { _getMobs } from "../lineOfSight";
 
 export const createMob = (
   x: number,

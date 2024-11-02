@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, test } from "vitest";
-import { _getMobs, _setSelected, place, reset, step } from "../main";
+import { _getMobs, _setSelected, place, reset, step } from "../lineOfSight";
 import { Mob } from "../types";
 import { checkIdleStep, checkMove } from "./utils";
 
@@ -13,7 +13,7 @@ describe("trapped melee tests", () => {
     expect(_getMobs()).toEqual([]);
   });
 
-  let meleer: Mob = [8, 13, 3, 8, 13, 0, null];
+  const meleer: Mob = [8, 13, 3, 8, 13, 0, null];
 
   test("place single melee npc", () => {
     _setSelected([meleer[0], meleer[1]], meleer[2]);
