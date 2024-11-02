@@ -178,7 +178,7 @@ function App() {
         showVenatorBounce={showVenatorBounce}
         delayFirstAttack={firstAttackDelayed}
         onCanSaveReplayChanged={setCanSaveReplay}
-        onHasReplayChanged={(hasReplay, replayLength) =>
+        onHasReplayChanged={(_hasReplay, replayLength) =>
           setCurrentReplayLength(replayLength ?? null)
         }
         onIsReplayingChanged={setIsReplaying}

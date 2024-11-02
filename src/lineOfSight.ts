@@ -469,7 +469,7 @@ function isPillar(x: number, y: number) {
 function removeMob(index: number) {
   mobs.splice(index, 1);
   tape = tape.map((entries) => {
-    return entries.filter((mobData, i) => i !== index);
+    return entries.filter((_mobData, i) => i !== index);
   });
 }
 
