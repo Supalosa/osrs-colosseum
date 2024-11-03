@@ -1,11 +1,11 @@
-import { beforeAll, describe, expect, test } from "vitest";
-import { _getMobs, _setSelected, place, reset, step } from "../main";
+import { beforeAll, describe, test } from "vitest";
+import { _setSelected, place, reset, step } from "../lineOfSight";
 import { Mob } from "../types";
-import { checkIdleStep, checkMove } from "./utils";
+import { checkMove } from "./utils";
 
 // for example, serpent shaman
 describe("single tile NPC pathing", () => {
-  let shaman: Mob = [8, 7, 1, 8, 7, 0, null];
+  const shaman: Mob = [8, 7, 1, 8, 7, 0, null];
   beforeAll(() => {
     // this is a sequential test, so only reset state at the start
     reset();

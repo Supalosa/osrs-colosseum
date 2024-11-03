@@ -10,17 +10,46 @@
   border: 1px solid black;
   display: inline-block;
 }
+
 #tape {
   display: inline-block;
   vertical-align: top;
 }
+
 button {
   margin-bottom: 3px;
 }
+
 .south {
   -webkit-transform: rotate(180deg);
   -moz-transform: rotate(180deg);
   -ms-transform: rotate(180deg);
   -o-transform: rotate(180deg);
   transform: rotate(180deg);
+}
+
+body {
+  width: 860px;
+}
+
+.frame {
+  margin-bottom: 10px;
+  width: 100%;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.footer {
+  margin-bottom: 10px;
+  text-align: center;
+  font-size: 0.8em;
+}
+
+.UnitButton .overlay {
+  position: absolute;
+  right: 0;
+  top: 0;
 }

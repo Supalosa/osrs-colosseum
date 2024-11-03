@@ -1,0 +1,29 @@
+.ManticoreOverlay {
+    display: flex;
+    flex-direction: column-reverse;
+    gap: 0;
+    width: 16px;
+    height: 48px;
+}
+
+.ManticoreOverlay .orb {
+    height: 16px;
+}
+
+.ManticoreOverlay .orb::before {
+    width: 16px;
+    height: 16px;
+    display: inline-block;
+    content: '';
+    border-radius: 16px;
+}
+
+.ManticoreOverlay .orb.range::before {
+    background-color: #00FF00CC;
+}
+.ManticoreOverlay .orb.mage::before {
+    background-color: #0000FFCC;
+}
+.ManticoreOverlay .orb.melee::before {
+    background-color: #FF0000CC;
+}

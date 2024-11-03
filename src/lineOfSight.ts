@@ -1,14 +1,13 @@
 import { Coordinates, Mob, MobExtra, MobSpec, TapeEntry } from "./types";
 import { blockedTileRanges } from "./constants";
 
-import "./style.css";
 import { canBounce } from "./venator";
 
 const SIZE = [1, 1, 3, 2, 3, 3, 3];
 const RANGE = [10, 10, 15, 1, 15, 1, 15];
 const CD = [0, 5, 5, 5, 10, 5, 5];
 const img_sources = [
-  "",
+  "player.png",
   "serpent_shaman.png", // 10 range
   "javelin_colossus.png", // 15 range
   "jaguar_warrior.png",
@@ -17,9 +16,22 @@ const img_sources = [
   "shockwave_colossus.png",
 ];
 
+const images: (HTMLImageElement | null)[] = [];
+img_sources.forEach((src, i) => {
+  if (src.length === 0) {
+    return null;
+  }
+  const image = new Image();
+  image.src = src;
+  image.onload = () => {
+    images[i] = image;
+  };
+});
+
 const colors = ["red", "cyan", "lime", "orange", "purple", "brown", "blue"];
 
-const img_sources_north = img_sources;
+const MODE_PLAYER = 0;
+
 export const MANTICORE = 4;
 const MANTICORE_RANGE_FIRST = "r";
 const MANTICORE_MAGE_FIRST = "m";
@@ -66,12 +78,12 @@ var mode = 0;
 // only used for manticore at the moment
 var modeExtra: MobExtra = null;
 var degen = false;
-var b5Tile = [5, 15];
-var selected = [...b5Tile];
+const b5Tile = [5, 15] as const;
+var cursorLocation: Coordinates | null = null;
+var selected: Coordinates = [...b5Tile];
 var mobs: Mob[] = [];
 var showSpawns = true;
 var showPlayerLoS = true;
-var showZukSpots = true;
 var checker = true;
 let mousedOverNpc: number | null = null;
 
@@ -97,7 +109,8 @@ function doAutoTick() {
   step();
   drawWave();
 }
-function toggleAutoReplay() {
+
+export function toggleAutoReplay() {
   if (replayAuto) {
     clearTimeout(replayAuto);
     replayAuto = null;
@@ -111,14 +124,9 @@ const MAX_EXPORT_LENGTH = 128;
 
 let manticoreTicksRemaining: { [mobIndex: number]: number } = {};
 
-let mapElement: HTMLCanvasElement | null = <HTMLCanvasElement>(
-  document.getElementById("map")
-);
-let delayFirstAttack: HTMLInputElement | null = null;
-let showVenatorBounce: HTMLInputElement | null = null;
-let replayAutoButton: HTMLButtonElement | null = null;
-let copyReplayUrlButton: HTMLButtonElement | null = null;
-let replayIndicator: HTMLDivElement | null = null;
+let mapElement: HTMLCanvasElement | null = null;
+let delayFirstAttack: boolean = false;
+let showVenatorBounce: boolean = false;
 
 var ctx: CanvasRenderingContext2D | null = null;
 var size = 20;
@@ -128,31 +136,177 @@ const TICKER_WIDTH = 9;
 const CANVAS_WIDTH = size * MAP_WIDTH + TICKER_WIDTH * size;
 const CANVAS_HEIGHT = size * MAP_HEIGHT;
 
-function initDOM() {
-  mapElement = document.getElementById("map") as HTMLCanvasElement;
+export const setFirstAttackDelayed = (delayed: boolean) => {
+  delayFirstAttack = delayed;
+};
+
+export const setShowVenatorBounce = (show: boolean) => {
+  showVenatorBounce = show;
+};
+
+export const handleKeyDown = function (e: KeyboardEvent) {
+  switch (e.keyCode) {
+    case 38:
+      step(true);
+      break;
+    case 40:
+      reset();
+      break;
+  }
+};
+
+export const onCanvasMouseDown = function (e: React.MouseEvent) {
+  var x = e.nativeEvent.offsetX;
+  var y = e.nativeEvent.offsetY;
+  var selectedNpcIndex = null;
+  x = Math.floor(x / size);
+  y = Math.floor(y / size);
+  if (x < MAP_WIDTH) {
+    if (replay) {
+      stopReplay();
+    }
+    for (var i = 0; i < mobs.length; i++) {
+      if (doesCollide(x, y, 1, mobs[i][0], mobs[i][1], SIZE[mobs[i][2]])) {
+        selectedNpcIndex = i;
+        break;
+      }
+    }
+    if (selectedNpcIndex === null) {
+      if (mode === MODE_PLAYER) {
+        // move player
+        selected = [x, y];
+      }
+      cursorLocation = [x, y];
+    } else {
+      // start drag
+      draggingNpcIndex = selectedNpcIndex;
+      draggingNpcOffset = [
+        x - mobs[selectedNpcIndex][0],
+        y - mobs[selectedNpcIndex][1],
+      ];
+      cursorLocation = null;
+    }
+  } else if (x <= CANVAS_WIDTH && y >= 0 && y <= tape.length + 1) {
+    const tapeIndex = Math.floor(y);
+    tapeSelectionRange = [tapeIndex];
+  }
+  drawWave();
+};
+
+export const onCanvasMouseUp = function (e: React.MouseEvent) {
+  var x = e.nativeEvent.offsetX;
+  var y = e.nativeEvent.offsetY;
+  x = Math.floor(x / size);
+  y = Math.floor(y / size);
+  if (tapeSelectionRange?.length === 1) {
+    if (x >= MAP_WIDTH && x <= CANVAS_WIDTH && y >= 0 && y <= CANVAS_HEIGHT) {
+      const endY = Math.min(y + 1, tape.length);
+      tapeSelectionRange = [tapeSelectionRange[0], endY];
+    }
+  }
+  draggingNpcIndex = null;
+  draggingNpcOffset = null;
+  drawWave();
+};
+
+export const onCanvasDblClick = function (e: React.MouseEvent) {
+  var x = e.nativeEvent.offsetX;
+  var y = e.nativeEvent.offsetY;
+  x = Math.floor(x / size);
+  y = Math.floor(y / size);
+  if (x < MAP_WIDTH) {
+    for (var i = 0; i < mobs.length; i++) {
+      if (doesCollide(x, y, 1, mobs[i][0], mobs[i][1], SIZE[mobs[i][2]])) {
+        removeMob(i);
+        break;
+      }
+    }
+    drawWave();
+  }
+};
+
+export const onCanvasMouseWheel = function (e: React.WheelEvent) {
+  if (e.deltaY > 0) {
+    step();
+    drawWave();
+  } else {
+    reset();
+    drawWave();
+  }
+};
+
+export const onCanvasMouseOut = function () {
+  // delete dragged npc if out of map
+  if (draggingNpcIndex !== null) {
+    removeMob(draggingNpcIndex);
+    draggingNpcIndex = null;
+    drawWave();
+  }
+};
+
+export const onCanvasMouseMove = function (e: React.MouseEvent) {
+  // dragging
+  var x = e.nativeEvent.offsetX;
+  var y = e.nativeEvent.offsetY;
+  x = Math.floor(x / size);
+  y = Math.floor(y / size);
+  if (x < 0 || x >= MAP_WIDTH || y < 0 || y > MAP_HEIGHT) {
+    return;
+  }
+  var mouseIcon = "auto";
+  var dirty = false;
+  var wasMousedOverNpc = mousedOverNpc;
+  mousedOverNpc = null;
+  for (var i = 0; i < mobs.length; i++) {
+    if (doesCollide(x, y, 1, mobs[i][0], mobs[i][1], SIZE[mobs[i][2]])) {
+      mouseIcon = "move";
+      mousedOverNpc = i;
+      break;
+    }
+  }
+  dirty ||= mousedOverNpc !== wasMousedOverNpc;
+
+  mapElement!.style.cursor = mouseIcon;
+  if (e.buttons & 0x1) {
+    // holding left button
+    if (draggingNpcIndex !== null && draggingNpcOffset !== null) {
+      mobs[draggingNpcIndex][0] = x - draggingNpcOffset[0];
+      mobs[draggingNpcIndex][1] = y - draggingNpcOffset[1];
+      mobs[draggingNpcIndex][3] = x - draggingNpcOffset[0];
+      mobs[draggingNpcIndex][4] = y - draggingNpcOffset[1];
+      cursorLocation = null;
+    } else if (mode > MODE_PLAYER) {
+      cursorLocation = [x, y];
+    } else {
+      cursorLocation = [x, y];
+      selected = [x, y];
+    }
+    dirty = true;
+  }
+  if (dirty) {
+    drawWave();
+  }
+};
+
+function initDOM(canvas: HTMLCanvasElement) {
+  mapElement = canvas;
   ctx = mapElement.getContext("2d");
   mapElement.width = CANVAS_WIDTH;
   mapElement.height = CANVAS_HEIGHT;
-  delayFirstAttack = document.getElementById(
-    "delayFirstAttack"
-  ) as HTMLInputElement;
-  showVenatorBounce = document.getElementById(
-    "showVenatorBounce"
-  ) as HTMLInputElement;
-  replayAutoButton = document.getElementById(
-    "replayAutoButton"
-  ) as HTMLButtonElement;
-  copyReplayUrlButton = document.getElementById(
-    "copyReplayUrlButton"
-  ) as HTMLButtonElement;
-  replayIndicator = document.getElementById(
-    "replayIndicator"
-  ) as HTMLDivElement;
-  return mapElement;
 }
 
-document.addEventListener("DOMContentLoaded", function () {
-  initDOM();
+export function initCanvas(canvas: HTMLCanvasElement) {
+  initDOM(canvas);
+  loadSpawns();
+  drawWave();
+}
+
+let hasLoadedSpawns = false;
+function loadSpawns() {
+  if (hasLoadedSpawns) {
+    return;
+  }
+  hasLoadedSpawns = true;
   var spawn = parent.location.search
     .replace("?", "")
     .split(".")
@@ -186,167 +340,15 @@ document.addEventListener("DOMContentLoaded", function () {
     step();
     replayAuto = setTimeout(() => doAutoTick(), 600);
   }
-  drawWave();
-});
-mapElement?.addEventListener("mousedown", function (e) {
-  var x = e.offsetX;
-  var y = e.offsetY;
-  var selectedNpcIndex = null;
-  x = Math.floor(x / size);
-  y = Math.floor(y / size);
-  if (x < MAP_WIDTH) {
-    if (replay) {
-      stopReplay();
-    }
-    for (var i = 0; i < mobs.length; i++) {
-      if (doesCollide(x, y, 1, mobs[i][0], mobs[i][1], SIZE[mobs[i][2]])) {
-        selectedNpcIndex = i;
-        break;
-      }
-    }
-    if (selectedNpcIndex === null) {
-      selected[0] = x;
-      selected[1] = y;
-    } else {
-      // start drag
-      draggingNpcIndex = selectedNpcIndex;
-      draggingNpcOffset = [
-        x - mobs[selectedNpcIndex][0],
-        y - mobs[selectedNpcIndex][1],
-      ];
-    }
-  } else if (x <= CANVAS_WIDTH && y >= 0 && y <= tape.length + 1) {
-    const tapeIndex = Math.floor(y);
-    tapeSelectionRange = [tapeIndex];
-  }
-  drawWave();
-});
-mapElement?.addEventListener("mouseup", function (e) {
-  var x = e.offsetX;
-  var y = e.offsetY;
-  x = Math.floor(x / size);
-  y = Math.floor(y / size);
-  if (tapeSelectionRange?.length === 1) {
-    if (x >= MAP_WIDTH && x <= CANVAS_WIDTH && y >= 0 && y <= CANVAS_HEIGHT) {
-      const endY = Math.min(y + 1, tape.length);
-      tapeSelectionRange = [tapeSelectionRange[0], endY];
-    }
-  }
-  draggingNpcIndex = null;
-  draggingNpcOffset = null;
-  drawWave();
-});
-mapElement?.addEventListener("dblclick", function (e) {
-  var x = e.offsetX;
-  var y = e.offsetY;
-  x = Math.floor(x / size);
-  y = Math.floor(y / size);
-  if (x < MAP_WIDTH) {
-    for (var i = 0; i < mobs.length; i++) {
-      if (doesCollide(x, y, 1, mobs[i][0], mobs[i][1], SIZE[mobs[i][2]])) {
-        mobs.splice(i, 1);
-        break;
-      }
-    }
-    drawWave();
-  }
-});
-mapElement?.addEventListener("wheel", function (e) {
-  if (e.deltaY > 0) {
-    step();
-    drawWave();
-  } else {
-    reset();
-    drawWave();
-  }
-});
-document.addEventListener("keydown", function (e) {
-  switch (e.keyCode) {
-    case 38:
-      step();
-      drawWave();
-      break;
-    case 40:
-      reset();
-      drawWave();
-      break;
-    case 81:
-      mode = 1;
-      place();
-      drawWave();
-      break;
-    case 87:
-      mode = 2;
-      place();
-      drawWave();
-      break;
-    case 69:
-      mode = 5;
-      place();
-      drawWave();
-      break;
-    case 82:
-      mode = 6;
-      place();
-      drawWave();
-      break;
-    case 84:
-      mode = 7;
-      place();
-      drawWave();
-      break;
-    case 85:
-      mode = 4;
-      place();
-      drawWave();
-      break;
-  }
-});
-mapElement?.addEventListener("mousemove", function (e) {
-  // dragging
-  var x = e.offsetX;
-  var y = e.offsetY;
-  x = Math.floor(x / size);
-  y = Math.floor(y / size);
-  if (x < 0 || x >= MAP_WIDTH || y < 0 || y > MAP_HEIGHT) {
-    return;
-  }
-  var mouseIcon = "auto";
-  var dirty = false;
-  var wasMousedOverNpc = mousedOverNpc;
-  mousedOverNpc = null;
-  for (var i = 0; i < mobs.length; i++) {
-    if (doesCollide(x, y, 1, mobs[i][0], mobs[i][1], SIZE[mobs[i][2]])) {
-      mouseIcon = "move";
-      mousedOverNpc = i;
-      break;
-    }
-  }
-  dirty ||= mousedOverNpc !== wasMousedOverNpc;
+}
 
-  mapElement!.style.cursor = mouseIcon;
-  if (e.buttons & 0x1) {
-    if (draggingNpcIndex !== null && draggingNpcOffset !== null) {
-      mobs[draggingNpcIndex][0] = x - draggingNpcOffset[0];
-      mobs[draggingNpcIndex][1] = y - draggingNpcOffset[1];
-      mobs[draggingNpcIndex][3] = x - draggingNpcOffset[0];
-      mobs[draggingNpcIndex][4] = y - draggingNpcOffset[1];
-    } else if (mode > 0) {
-      selected[0] = x;
-      selected[1] = y;
-    }
-    dirty = true;
-  }
-  if (dirty) {
-    drawWave();
-  }
-});
 function getBaseUrl() {
   if (window.location.protocol === "file:") {
     return `${window.location.protocol}//${window.location.pathname}?`;
   }
   return `${window.location.protocol}//${window.location.host}/?`;
 }
+
 export function getSpawnUrl(mobSpecs: MobSpec[]) {
   var url = getBaseUrl();
   mobSpecs.forEach(([locationX, locationY, mobType, extra]) => {
@@ -368,8 +370,8 @@ export function getSpawnUrl(mobSpecs: MobSpec[]) {
 const getMobSpec = (mob: Mob): MobSpec =>
   [mob[0], mob[1], mob[2], mob[6]] as MobSpec;
 
-function copySpawnURL() {
-  const mobSpecs = mobs.filter((mob) => mob[2] > 0).map(getMobSpec);
+export function copySpawnURL() {
+  const mobSpecs = mobs.filter((mob) => mob[2] > MODE_PLAYER).map(getMobSpec);
   var url = getSpawnUrl(mobSpecs);
   copyQ(url);
   alert("Spawn URL Copied!");
@@ -387,10 +389,7 @@ export function copyReplayURL() {
     upperBoundInclusive = Math.min(tape.length, MAX_EXPORT_LENGTH);
   }
   var mobTicks = tape.slice(lowerBound, upperBoundInclusive);
-  var playerTicks = playerTape.slice(
-    lowerBound,
-    upperBoundInclusive
-  );
+  var playerTicks = playerTape.slice(lowerBound, upperBoundInclusive);
 
   // get the mob positions/specs at the start of the selection
   const mobSpecs = mobTicks[0].map(
@@ -439,25 +438,13 @@ function encodeCoordinate(coords: Coordinates) {
 function decodeCoordinates(coords: number): Coordinates {
   return [coords & 0xff, (coords >> 8) & 0xff];
 }
-function toggleSpawns() {
-  showSpawns = !showSpawns;
-  drawWave();
-}
-function togglePlayerLoS() {
+export function togglePlayerLoS() {
   showPlayerLoS = !showPlayerLoS;
-  drawWave();
-}
-function toggleZukSpots() {
-  showZukSpots = !showZukSpots;
   drawWave();
 }
 function toggleNS() {
   mapElement?.classList.toggle("south");
   degen = !degen;
-  drawWave();
-}
-function toggleChecker() {
-  checker = !checker;
   drawWave();
 }
 function isPillar(x: number, y: number) {
@@ -479,6 +466,14 @@ function isPillar(x: number, y: number) {
   }
   return isPillar;
 }
+
+function removeMob(index: number) {
+  mobs.splice(index, 1);
+  tape = tape.map((entries) => {
+    return entries.filter((_mobData, i) => i !== index);
+  });
+}
+
 function hasLOS(
   x1: number,
   y1: number,
@@ -489,8 +484,8 @@ function hasLOS(
   r = 1,
   isNPC = false
 ) {
-  let dx = x2 - x1;
-  let dy = y2 - y1;
+  const dx = x2 - x1;
+  const dy = y2 - y1;
   if (
     isPillar(x1, y1) ||
     isPillar(x2, y2) ||
@@ -510,27 +505,27 @@ function hasLOS(
     var ty = Math.max(y1 - s + 1, Math.min(y1, y2));
     return hasLOS(x2, y2, tx, ty, 1, r, false);
   }
-  let dxAbs = Math.abs(dx);
-  let dyAbs = Math.abs(dy);
+  const dxAbs = Math.abs(dx);
+  const dyAbs = Math.abs(dy);
   if (dxAbs > r || dyAbs > r) {
     return false;
   } //iFreedive
   if (dxAbs > dyAbs) {
     let xTile = x1;
     let y = (y1 << 16) + 0x8000;
-    let slope = Math.trunc((dy << 16) / dxAbs); // Integer division
-    let xInc = dx > 0 ? 1 : -1;
+    const slope = Math.trunc((dy << 16) / dxAbs); // Integer division
+    const xInc = dx > 0 ? 1 : -1;
     if (dy < 0) {
       y -= 1; // For correct rounding
     }
     while (xTile !== x2) {
       xTile += xInc;
-      let yTile = y >>> 16;
+      const yTile = y >>> 16;
       if (isPillar(xTile, yTile)) {
         return false;
       }
       y += slope;
-      let newYTile = y >>> 16;
+      const newYTile = y >>> 16;
       if (newYTile !== yTile && isPillar(xTile, newYTile)) {
         return false;
       }
@@ -538,19 +533,19 @@ function hasLOS(
   } else {
     let yTile = y1;
     let x = (x1 << 16) + 0x8000;
-    let slope = Math.trunc((dx << 16) / dyAbs); // Integer division
-    let yInc = dy > 0 ? 1 : -1;
+    const slope = Math.trunc((dx << 16) / dyAbs); // Integer division
+    const yInc = dy > 0 ? 1 : -1;
     if (dx < 0) {
       x -= 1; // For correct rounding
     }
     while (yTile !== y2) {
       yTile += yInc;
-      let xTile = x >>> 16;
+      const xTile = x >>> 16;
       if (isPillar(xTile, yTile)) {
         return false;
       }
       x += slope;
-      let newXTile = x >>> 16;
+      const newXTile = x >>> 16;
       if (newXTile !== xTile && isPillar(newXTile, yTile)) {
         return false;
       }
@@ -612,30 +607,38 @@ function sortMobs() {
   });
 }
 export function place() {
-  if (mode > 0) {
-    //x y mode ox oy cooldown extra
-    //prevent 2 mobs on same tile
-    for (var i = 0; i < mobs.length; i++) {
-      if (mobs[i][3] == selected[0] && mobs[i][4] == selected[1]) {
-        return;
+  if (cursorLocation) {
+    if (mode > 0) {
+      //x y mode ox oy cooldown extra
+      //prevent 2 mobs on same tile
+      for (var i = 0; i < mobs.length; i++) {
+        if (
+          mobs[i][3] == cursorLocation[0] &&
+          mobs[i][4] == cursorLocation[1]
+        ) {
+          return;
+        }
       }
+      mobs.push([
+        cursorLocation[0],
+        cursorLocation[1],
+        mode,
+        cursorLocation[0],
+        cursorLocation[1],
+        0,
+        modeExtra,
+      ]);
+      sortMobs();
+    } else {
+      selected = [...cursorLocation];
     }
-    mobs.push([
-      selected[0],
-      selected[1],
-      mode,
-      selected[0],
-      selected[1],
-      0,
-      modeExtra,
-    ]);
-    sortMobs();
+    cursorLocation = null;
   }
   mode = 0;
   modeExtra = null;
   drawWave();
 }
-export function step() {
+export function step(draw: boolean = false) {
   if (replay && replayTick !== null) {
     if (replay[replayTick]) {
       selected = replay[replayTick];
@@ -649,7 +652,7 @@ export function step() {
     }
   }
   if (mode == 0 && mobs.length > 0) {
-    const canAttack = delayFirstAttack?.checked
+    const canAttack = delayFirstAttack
       ? tickCount >= DELAY_FIRST_ATTACK_TICKS
       : true;
     var line: TapeEntry = [];
@@ -731,6 +734,9 @@ export function step() {
     tape.push(line);
   }
   tickCount++;
+  if (draw) {
+    drawWave();
+  }
 }
 function delayAllReadyMantis(ticks: number) {
   mobs
@@ -748,7 +754,8 @@ function stopReplay() {
   replayAuto = null;
   updateUi();
 }
-function remove() {
+
+export function remove() {
   mobs = [];
   stopReplay();
   const url = new URL(window.location.href);
@@ -776,9 +783,13 @@ export function reset() {
   }
   draggingNpcIndex = null;
   draggingNpcOffset = null;
+  drawWave();
 }
 
-export function setMode(m: number, extra?: MobExtra) {
+export function setMode(m: number, extra?: MobExtra, initPosition: boolean = false) {
+  if (initPosition && cursorLocation === null) {
+    cursorLocation = [...selected];
+  }
   mode = m;
   modeExtra = extra ?? null;
   drawWave();
@@ -813,27 +824,35 @@ function drawLOS(
   }
   ctx.globalAlpha = 1;
 }
+
+export type LoSListener = {
+  onHasReplayChanged: (hasReplay: boolean, replayLength: number | null) => void;
+  onIsReplayingChanged: (isReplaying: boolean) => void;
+  onCanSaveReplayChanged: (canReplay: boolean) => void;
+  onReplayTickChanged: (tick: number) => void;
+};
+
+// currently, only one LoS listener is allowed.
+export const registerLoSListener = (listener: LoSListener) => {
+  losListener = listener;
+};
+
+let losListener: LoSListener | null = null;
+
 function updateUi() {
-  if (!replayAutoButton || !copyReplayUrlButton || !replayIndicator) {
-    return;
-  }
-  if (replayAuto) {
-    replayAutoButton.innerHTML = "Pause";
-  } else {
-    replayAutoButton.innerHTML = "Play";
-  }
-  if (replay && replayTick !== null && replay[replayTick]) {
-    replayAutoButton.hidden = false;
-  } else {
-    replayAutoButton.hidden = true;
-  }
-  copyReplayUrlButton.disabled =
-    !!replayAuto || tape.length === 0 || tape.length > 32;
-  replayIndicator.innerHTML = !!replay
-    ? `<strong><span style="color: #FF0000;">Replay: Tick ${replayTick} / ${replay.length}</span></strong>`
-    : "";
+  // currently, we always fire events
+  losListener?.onIsReplayingChanged(!!replayAuto);
+  losListener?.onHasReplayChanged(
+    !!replay && replayTick !== null && !!replay[replayTick],
+    replay?.length ?? null
+  );
+  losListener?.onCanSaveReplayChanged(
+    !!replayAuto && tape.length > 0 && tape.length <= 32
+  );
+  losListener?.onReplayTickChanged(replayTick ?? 0);
 }
-function drawWave() {
+
+export function drawWave() {
   updateUi();
   if (!ctx || !mapElement) {
     return;
@@ -928,6 +947,7 @@ function drawWave() {
     }
   }
   if (draggingNpcIndex !== null) {
+    // currently dragging an NPC, draw its LOS
     const t = mobs[draggingNpcIndex][2];
     drawLOS(
       mobs[draggingNpcIndex][0],
@@ -948,17 +968,17 @@ function drawWave() {
         MINOTAUR_HEAL_COLOR
       );
     }
-  } else {
-    // currently dragging an NPC, draw its LOS
+  } else if (cursorLocation) {
+    // currently placing an NPC, draw its LOS
     var s = SIZE[mode];
     var r = RANGE[mode];
-    drawLOS(selected[0], selected[1], s, r, mode > 0, colors[mode]);
+    drawLOS(cursorLocation[0], cursorLocation[1], s, r, mode > 0, colors[mode]);
 
     // draw minotaur line-of-sight (from center tile as if it were a player)
     if (mode === MINOTAUR) {
       drawLOS(
-        selected[0] + 1,
-        selected[1] - 1,
+        cursorLocation[0] + 1,
+        cursorLocation[1] - 1,
         1,
         MINOTAUR_HEAL_RANGE,
         false,
@@ -966,48 +986,74 @@ function drawWave() {
       );
     }
   }
-  var c = colors[mode];
-  var s = SIZE[mode];
-  var r = RANGE[mode];
+
+  var c = colors[0];
+  var s = SIZE[0];
+  var r = RANGE[0];
+
+  // draw player
   ctx.fillStyle = ctx.strokeStyle = c;
-  if (mode < 8) {
-    ctx.fillRect(
+  ctx.fillRect(
+    selected[0] * size,
+    (selected[1] + 1) * size,
+    1 * size,
+    -1 * size
+  );
+  ctx.strokeRect(
+    selected[0] * size,
+    (selected[1] + 1) * size,
+    s * size,
+    -s * size
+  );
+  if (images[0]) {
+    ctx.drawImage(
+      images[0]!,
       selected[0] * size,
-      (selected[1] + 1) * size,
+      (selected[1] - s + 1) * size,
+      SIZE[0] * size,
+      SIZE[0] * size
+    );
+  }
+
+  if (cursorLocation) {
+    var c = colors[mode];
+    var s = SIZE[mode];
+    var r = RANGE[mode];
+    ctx.globalAlpha = 0.5;
+    ctx.fillStyle = ctx.strokeStyle = c;
+    ctx.fillRect(
+      cursorLocation[0] * size,
+      (cursorLocation[1] + 1) * size,
       1 * size,
       -1 * size
     );
     ctx.strokeRect(
-      selected[0] * size,
-      (selected[1] + 1) * size,
+      cursorLocation[0] * size,
+      (cursorLocation[1] + 1) * size,
       s * size,
       -s * size
     );
-  }
-  var current_i = new Image();
-  if (mode > 0) {
-    if (mapElement.classList.contains("south")) {
-      current_i.src = img_sources[mode];
-    } else {
-      current_i.src = img_sources_north[mode];
+    // draw image for anything that's not a player
+    if (images[mode]) {
+      ctx.drawImage(
+        images[mode]!,
+        cursorLocation[0] * size,
+        (cursorLocation[1] - s + 1) * size,
+        SIZE[mode] * size,
+        SIZE[mode] * size
+      );
     }
-    ctx.drawImage(
-      current_i,
-      selected[0] * size,
-      (selected[1] - s + 1) * size,
-      SIZE[mode] * size,
-      SIZE[mode] * size
-    );
-  }
-  if (mode === MANTICORE && modeExtra) {
-    const colorPattern = MANTICORE_PATTERNS[modeExtra];
-    drawManticorePattern(colorPattern, selected[0], selected[1]);
+    if (mode === MANTICORE && modeExtra) {
+      const colorPattern = MANTICORE_PATTERNS[modeExtra];
+      drawManticorePattern(colorPattern, cursorLocation[0], cursorLocation[1]);
+    }
+    ctx.globalAlpha = 1;
   }
   // ticker tape
   var offset = MAP_WIDTH * size;
   const tickerStartY = (idx: number) => size * idx;
   for (var i = 0; i < tape.length; i++) {
-    if (delayFirstAttack?.checked && i < DELAY_FIRST_ATTACK_TICKS) {
+    if (delayFirstAttack && i < DELAY_FIRST_ATTACK_TICKS) {
       ctx.fillStyle = i % 2 == 0 ? "#666" : "#777";
     } else {
       ctx.fillStyle = i % 2 == 0 ? "#ddd" : "#eee";
@@ -1062,13 +1108,15 @@ function drawWave() {
       // player
       continue;
     }
-    var mob_i = new Image();
-    if (mapElement.classList.contains("south")) {
-      mob_i.src = img_sources[t];
-    } else {
-      mob_i.src = img_sources_north[t];
+    if (images[t]) {
+      ctx.drawImage(
+        images[t]!,
+        x * size,
+        (y - s + 1) * size,
+        s * size,
+        s * size
+      );
     }
-    ctx.drawImage(mob_i, x * size, (y - s + 1) * size, s * size, s * size);
     const mobExtra = mobs[i][6];
     if (t === MANTICORE && mobExtra !== null) {
       const colorPattern = MANTICORE_PATTERNS[mobExtra];
@@ -1101,11 +1149,7 @@ function drawWave() {
       ctx.lineWidth = 1;
     }
 
-    if (
-      showVenatorBounce?.checked &&
-      mousedOverNpc !== null &&
-      mousedOverNpc !== i
-    ) {
+    if (showVenatorBounce && mousedOverNpc !== null && mousedOverNpc !== i) {
       // venator bounce candidate
       ctx.strokeStyle = "#ff69b4";
       ctx.lineWidth = 5;
@@ -1127,7 +1171,7 @@ function drawWave() {
 }
 
 function copyQ(val: string) {
-  var container = document.getElementById("container")!;
+  var container = document.getElementById("root")!;
   var inp = document.createElement("input");
   inp.type = "text";
   container.appendChild(inp);
@@ -1144,6 +1188,7 @@ export function _setSelected(
   _extra: MobExtra | null = null
 ) {
   selected = s;
+  cursorLocation = s;
   mode = _mode;
   modeExtra = _extra;
 }
@@ -1151,29 +1196,3 @@ export function _setSelected(
 export function _getMobs() {
   return mobs;
 }
-
-// make these available to the buttons (not how I'd choose to do this...)
-declare global {
-  interface Window {
-    remove: typeof remove;
-    setMode: typeof setMode;
-    place: typeof place;
-    togglePlayerLoS: typeof togglePlayerLoS;
-    copySpawnURL: typeof copySpawnURL;
-    copyReplayURL: typeof copyReplayURL;
-    step: typeof step;
-    reset: typeof reset;
-    drawWave: typeof drawWave;
-    toggleAutoReplay: typeof toggleAutoReplay;
-  }
-}
-window.remove = remove;
-window.setMode = setMode;
-window.place = place;
-window.togglePlayerLoS = togglePlayerLoS;
-window.copySpawnURL = copySpawnURL;
-window.copyReplayURL = copyReplayURL;
-window.step = step;
-window.reset = reset;
-window.drawWave = drawWave;
-window.toggleAutoReplay = toggleAutoReplay;

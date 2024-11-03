@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, test } from "vitest";
-import { _getMobs, _setSelected, place, reset, step } from "../main";
+import { _getMobs, _setSelected, place, reset } from "../lineOfSight";
 
 describe("placement tests", () => {
   beforeEach(() => {
