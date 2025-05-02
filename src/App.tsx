@@ -101,7 +101,7 @@ function App() {
           mode={2}
           image="./javelin_colossus.png"
           borderColor="lime"
-          tooltip="Place a Serpent Shaman by dragging onto the map."
+          tooltip="Place a Javelin Colossus by dragging onto the map."
         />
         <UnitButton
           mode={3}

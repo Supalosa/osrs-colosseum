@@ -78,7 +78,7 @@ var mode = 0;
 // only used for manticore at the moment
 var modeExtra: MobExtra = null;
 var degen = false;
-const b5Tile = [5, 15] as const;
+const b5Tile = [7, 15] as const;
 var cursorLocation: Coordinates | null = null;
 var selected: Coordinates = [...b5Tile];
 var mobs: Mob[] = [];
