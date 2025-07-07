@@ -59,7 +59,8 @@ describe("fromWaveStart tests", () => {
 
     test("check npc doesn't attack on second tick", () => {
       step();
-      checkIdleStep(javelin);
+      // it moves for one tick but doesn't attack
+      checkMove(javelin, 13, 13);
     });
 
     test("check npc doesn't attack on third tick", () => {

@@ -656,6 +656,7 @@ export function step(draw: boolean = false) {
       ? tickCount >= DELAY_FIRST_ATTACK_TICKS
       : true;
     const canMove = fromWaveStart ? tickCount > 0 : true;
+    const canGainLos = fromWaveStart ? tickCount > 1 : true;
     var line: TapeEntry = [];
     let manticoreFiredThisTick = false;
     for (var i = 0; i < mobs.length; i++) {
@@ -669,7 +670,7 @@ export function step(draw: boolean = false) {
         var r = RANGE[t];
         var attacked = 0;
         //move
-        if (canMove && !hasLOS(x, y, selected[0], selected[1], s, r, true)) {
+        if (canMove && !(canGainLos && hasLOS(x, y, selected[0], selected[1], s, r, true))) {
           var dx = x + Math.sign(selected[0] - x);
           var dy = y + Math.sign(selected[1] - y);
           //allows corner safespotting
