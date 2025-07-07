@@ -53,6 +53,7 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(
       onIsReplayingChanged,
       onCanSaveReplayChanged,
       onReplayTickChanged,
+      onFromWaveStartChanged,
       onMouseUp,
     } = props;
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -62,6 +63,7 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(
       onCanSaveReplayChanged,
       onIsReplayingChanged,
       onReplayTickChanged,
+      onFromWaveStartChanged,
     };
 
     useEffect(() => {

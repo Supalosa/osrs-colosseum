@@ -7,7 +7,8 @@ import { ManticoreOverlay } from "./ManticoreOverlay";
 function App() {
   const [isDragging, setDragging] = useState(false);
 
-  const [fromWaveStart, setFromWaveStart] = useState(false);
+  // note: this is a bit janky (it's set here on first mount + in lineOnSight in parse)
+  const [fromWaveStart, setFromWaveStart] = useState(parent.location.hash?.endsWith("ws"));
   const [showVenatorBounce, setShowVenatorBounce] = useState(false);
 
   const [currentReplayLength, setCurrentReplayLength] = useState<number | null>(
@@ -164,7 +165,7 @@ function App() {
         <div>
           <input
             type="checkbox"
-            value={fromWaveStart ? "true" : "false"}
+            checked={fromWaveStart ? true : false}
             onChange={(e) => setFromWaveStart(e.target.checked)}
             aria-label="NPCs will not attack for 3t after wave start, cannot move on the first tick, have melee distance second tick"
             data-microtip-position="bottom"
@@ -225,6 +226,7 @@ function App() {
         }
         onIsReplayingChanged={setIsReplaying}
         onReplayTickChanged={setReplayTick}
+        onFromWaveStartChanged={setFromWaveStart}
         onMouseUp={handleMaybeDrop}
       />
       <p className="footer">

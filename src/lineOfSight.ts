@@ -136,8 +136,9 @@ const TICKER_WIDTH = 9;
 const CANVAS_WIDTH = size * MAP_WIDTH + TICKER_WIDTH * size;
 const CANVAS_HEIGHT = size * MAP_HEIGHT;
 
-export const setFromWaveStart = (delayed: boolean) => {
-  fromWaveStart = delayed;
+export const setFromWaveStart = (val: boolean) => {
+  fromWaveStart = val;
+  losListener?.onFromWaveStartChanged(val);
 };
 
 export const setShowVenatorBounce = (show: boolean) => {
@@ -323,7 +324,13 @@ function loadSpawns() {
     }
   }
   sortMobs();
-  var hash = parent.location.hash
+  const [playerCoords, ws] = parent.location.hash?.split("_");
+
+  if (ws === "ws") {
+    setFromWaveStart(true);
+  }
+
+  const hash = playerCoords
     ?.replace("#", "")
     .split(".")
     .filter((s) => !!s);
@@ -401,12 +408,12 @@ export function copyReplayURL() {
         mobs[mobIdx][6],
       ] as MobSpec
   );
-  var url = getReplayURL(mobSpecs, playerTicks);
+  var url = getReplayURL(mobSpecs, playerTicks, fromWaveStart);
   copyQ(url);
   alert("Replay URL Copied!");
 }
 
-export function getReplayURL(mobSpecs: MobSpec[], playerTicks: Coordinates[]) {
+export function getReplayURL(mobSpecs: MobSpec[], playerTicks: Coordinates[], fromWaveStart: boolean = false) {
   var url = getSpawnUrl(mobSpecs);
   url = url.concat("#");
   var playerLocations = playerTicks.map(encodeCoordinate);
@@ -429,6 +436,9 @@ export function getReplayURL(mobSpecs: MobSpec[], playerTicks: Coordinates[]) {
   url = url.concat(last.toString());
   if (runLength > 1) {
     url = url.concat(`x${runLength}`);
+  }
+  if (fromWaveStart) {
+    url = url.concat("_", "ws");
   }
   return url;
 }
@@ -832,6 +842,7 @@ export type LoSListener = {
   onIsReplayingChanged: (isReplaying: boolean) => void;
   onCanSaveReplayChanged: (canReplay: boolean) => void;
   onReplayTickChanged: (tick: number) => void;
+  onFromWaveStartChanged: (fromWaveStart: boolean) => void;
 };
 
 // currently, only one LoS listener is allowed.
