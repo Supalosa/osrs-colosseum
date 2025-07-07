@@ -7,7 +7,7 @@ import { ManticoreOverlay } from "./ManticoreOverlay";
 function App() {
   const [isDragging, setDragging] = useState(false);
 
-  const [firstAttackDelayed, setFirstAttackDelayed] = useState(false);
+  const [fromWaveStart, setFromWaveStart] = useState(false);
   const [showVenatorBounce, setShowVenatorBounce] = useState(false);
 
   const [currentReplayLength, setCurrentReplayLength] = useState<number | null>(
@@ -164,13 +164,13 @@ function App() {
         <div>
           <input
             type="checkbox"
-            value={firstAttackDelayed ? "true" : "false"}
-            onChange={(e) => setFirstAttackDelayed(e.target.checked)}
-            aria-label="NPCs will not attack for 3t after wave start"
+            value={fromWaveStart ? "true" : "false"}
+            onChange={(e) => setFromWaveStart(e.target.checked)}
+            aria-label="NPCs will not attack for 3t after wave start, cannot move on the first tick, have melee distance second tick"
             data-microtip-position="bottom"
             role="tooltip"
           />
-          <span>Delay first attack by 3t</span>
+          <span>From wave start</span>
         </div>
         <div>
           <input
@@ -218,7 +218,7 @@ function App() {
       <Canvas
         ref={canvas}
         showVenatorBounce={showVenatorBounce}
-        delayFirstAttack={firstAttackDelayed}
+        fromWaveStart={fromWaveStart}
         onCanSaveReplayChanged={setCanSaveReplay}
         onHasReplayChanged={(_hasReplay, replayLength) =>
           setCurrentReplayLength(replayLength ?? null)
