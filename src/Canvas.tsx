@@ -16,7 +16,7 @@ import {
   onCanvasMouseDown,
   onCanvasMouseUp,
   onCanvasMouseMove,
-  setFirstAttackDelayed,
+  setFromWaveStart,
   setShowVenatorBounce,
   handleKeyDown,
   LoSListener,
@@ -26,7 +26,7 @@ import {
 } from "./lineOfSight";
 
 export type CanvasProps = LoSListener & {
-  delayFirstAttack: boolean;
+  fromWaveStart: boolean;
   showVenatorBounce: boolean;
   onMouseUp: React.MouseEventHandler;
 };
@@ -47,12 +47,13 @@ export type CanvasHandle = {
 export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(
   (props, ref) => {
     const {
-      delayFirstAttack,
+      fromWaveStart,
       showVenatorBounce,
       onHasReplayChanged,
       onIsReplayingChanged,
       onCanSaveReplayChanged,
       onReplayTickChanged,
+      onFromWaveStartChanged,
       onMouseUp,
     } = props;
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -62,6 +63,7 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(
       onCanSaveReplayChanged,
       onIsReplayingChanged,
       onReplayTickChanged,
+      onFromWaveStartChanged,
     };
 
     useEffect(() => {
@@ -76,9 +78,9 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(
     }, []);
 
     useEffect(() => {
-      setFirstAttackDelayed(delayFirstAttack);
+      setFromWaveStart(fromWaveStart);
       drawWave();
-    }, [delayFirstAttack]);
+    }, [fromWaveStart]);
 
     useEffect(() => {
       setShowVenatorBounce(showVenatorBounce);

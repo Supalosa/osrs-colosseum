@@ -125,7 +125,7 @@ const MAX_EXPORT_LENGTH = 128;
 let manticoreTicksRemaining: { [mobIndex: number]: number } = {};
 
 let mapElement: HTMLCanvasElement | null = null;
-let delayFirstAttack: boolean = false;
+let fromWaveStart: boolean = false;
 let showVenatorBounce: boolean = false;
 
 var ctx: CanvasRenderingContext2D | null = null;
@@ -136,8 +136,9 @@ const TICKER_WIDTH = 9;
 const CANVAS_WIDTH = size * MAP_WIDTH + TICKER_WIDTH * size;
 const CANVAS_HEIGHT = size * MAP_HEIGHT;
 
-export const setFirstAttackDelayed = (delayed: boolean) => {
-  delayFirstAttack = delayed;
+export const setFromWaveStart = (val: boolean) => {
+  fromWaveStart = val;
+  losListener?.onFromWaveStartChanged(val);
 };
 
 export const setShowVenatorBounce = (show: boolean) => {
@@ -323,7 +324,13 @@ function loadSpawns() {
     }
   }
   sortMobs();
-  var hash = parent.location.hash
+  const [playerCoords, ws] = parent.location.hash?.split("_");
+
+  if (ws === "ws") {
+    setFromWaveStart(true);
+  }
+
+  const hash = playerCoords
     ?.replace("#", "")
     .split(".")
     .filter((s) => !!s);
@@ -401,12 +408,12 @@ export function copyReplayURL() {
         mobs[mobIdx][6],
       ] as MobSpec
   );
-  var url = getReplayURL(mobSpecs, playerTicks);
+  var url = getReplayURL(mobSpecs, playerTicks, fromWaveStart);
   copyQ(url);
   alert("Replay URL Copied!");
 }
 
-export function getReplayURL(mobSpecs: MobSpec[], playerTicks: Coordinates[]) {
+export function getReplayURL(mobSpecs: MobSpec[], playerTicks: Coordinates[], fromWaveStart: boolean = false) {
   var url = getSpawnUrl(mobSpecs);
   url = url.concat("#");
   var playerLocations = playerTicks.map(encodeCoordinate);
@@ -429,6 +436,9 @@ export function getReplayURL(mobSpecs: MobSpec[], playerTicks: Coordinates[]) {
   url = url.concat(last.toString());
   if (runLength > 1) {
     url = url.concat(`x${runLength}`);
+  }
+  if (fromWaveStart) {
+    url = url.concat("_", "ws");
   }
   return url;
 }
@@ -652,9 +662,11 @@ export function step(draw: boolean = false) {
     }
   }
   if (mode == 0 && mobs.length > 0) {
-    const canAttack = delayFirstAttack
+    const canAttack = fromWaveStart
       ? tickCount >= DELAY_FIRST_ATTACK_TICKS
       : true;
+    const canMove = fromWaveStart ? tickCount > 0 : true;
+    const canGainLos = fromWaveStart ? tickCount > 1 : true;
     var line: TapeEntry = [];
     let manticoreFiredThisTick = false;
     for (var i = 0; i < mobs.length; i++) {
@@ -668,7 +680,7 @@ export function step(draw: boolean = false) {
         var r = RANGE[t];
         var attacked = 0;
         //move
-        if (!hasLOS(x, y, selected[0], selected[1], s, r, true)) {
+        if (canMove && !(canGainLos && hasLOS(x, y, selected[0], selected[1], s, r, true))) {
           var dx = x + Math.sign(selected[0] - x);
           var dy = y + Math.sign(selected[1] - y);
           //allows corner safespotting
@@ -830,6 +842,7 @@ export type LoSListener = {
   onIsReplayingChanged: (isReplaying: boolean) => void;
   onCanSaveReplayChanged: (canReplay: boolean) => void;
   onReplayTickChanged: (tick: number) => void;
+  onFromWaveStartChanged: (fromWaveStart: boolean) => void;
 };
 
 // currently, only one LoS listener is allowed.
@@ -1053,7 +1066,7 @@ export function drawWave() {
   var offset = MAP_WIDTH * size;
   const tickerStartY = (idx: number) => size * idx;
   for (var i = 0; i < tape.length; i++) {
-    if (delayFirstAttack && i < DELAY_FIRST_ATTACK_TICKS) {
+    if (fromWaveStart && i < DELAY_FIRST_ATTACK_TICKS) {
       ctx.fillStyle = i % 2 == 0 ? "#666" : "#777";
     } else {
       ctx.fillStyle = i % 2 == 0 ? "#ddd" : "#eee";
