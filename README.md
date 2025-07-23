@@ -12,7 +12,7 @@ Originally written by [Backseat](https://bistools.github.io/inferno.html) and [i
 
     npm run dev
 
-Then navigate to https://localhost:5173
+Then navigate to http://localhost:5173
 
 ## Testing
 
