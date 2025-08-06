@@ -804,66 +804,36 @@ export function step(draw: boolean = false) {
               // Start charging if not already
               if (!mob[8] || mob[8] === 0) {
                 mob[8] = MANTICORE_CHARGE_TIME; // Start at 10
-                // Determine attack style for unknown manticores
-                if (mob[6] === "u" || !mob[6]) {
-                  // Check if another manticore is alive (not just charged)
-                  let inheritStyle = null;
-                  for (let j = 0; j < mobs.length; j++) {
-                    if (j !== i && mobs[j][2] === MANTICORE) {
-                      // Get the other manticore's style (even if it's uncharged)
+                
+                // Check if another manticore is already charging/charged
+                let inheritStyle = null;
+                for (let j = 0; j < mobs.length; j++) {
+                  if (j !== i && mobs[j][2] === MANTICORE) {
+                    const otherChargingTicks = mobs[j][8];
+                    const otherIsCharged = mobs[j][7] !== false;
+                    // Check if the other manticore has started charging or is charged
+                    if (otherIsCharged || (otherChargingTicks !== undefined && otherChargingTicks > 0)) {
+                      // Get the actual style the other manticore is using
                       const otherExtra = mobs[j][6];
-                      if (otherExtra && otherExtra !== "u") {
-                        // Extract the actual style from ur/um
-                        if (otherExtra === "ur") {
-                          inheritStyle = "r";
-                        } else if (otherExtra === "um") {
-                          inheritStyle = "m";
-                        } else {
-                          inheritStyle = otherExtra;
-                        }
+                      if (otherExtra === "r" || otherExtra === "m") {
+                        inheritStyle = otherExtra;
                         break;
                       }
                     }
                   }
-                  // If we found another manticore with a known style, inherit it
-                  if (inheritStyle) {
-                    mob[6] = inheritStyle as MobExtra;
-                  } else {
-                    // Otherwise pick randomly
+                }
+                
+                // Determine attack style based on whether we found another charging manticore
+                if (inheritStyle) {
+                  // Always inherit from a charging/charged manticore if one exists
+                  mob[6] = inheritStyle as MobExtra;
+                } else {
+                  // No other manticore is charging/charged
+                  if (mob[6] === null) {
+                    // Unknown manticore - pick randomly
                     mob[6] = (Math.random() < 0.5 ? "r" : "m") as MobExtra;
                   }
-                } else if (mob[6] === "ur" || mob[6] === "um") {
-                  // For known uncharged manticores, check if we should override with another manticore's style
-                  let shouldOverride = false;
-                  let overrideStyle = null;
-                  
-                  for (let j = 0; j < mobs.length; j++) {
-                    if (j !== i && mobs[j][2] === MANTICORE) {
-                      // If another manticore is alive and already attacking/charged
-                      const chargingTicks = mobs[j][8];
-                      if (mobs[j][7] !== false || (chargingTicks !== undefined && chargingTicks > 0)) {
-                        const otherExtra = mobs[j][6];
-                        if (otherExtra && otherExtra !== "u") {
-                          shouldOverride = true;
-                          if (otherExtra === "ur") {
-                            overrideStyle = "r";
-                          } else if (otherExtra === "um") {
-                            overrideStyle = "m";
-                          } else {
-                            overrideStyle = otherExtra;
-                          }
-                          break;
-                        }
-                      }
-                    }
-                  }
-                  
-                  if (shouldOverride && overrideStyle) {
-                    mob[6] = overrideStyle as MobExtra;
-                  } else {
-                    // Use the known style
-                    mob[6] = (mob[6] === "ur" ? "r" : "m") as MobExtra;
-                  }
+                  // Otherwise, known uncharged manticore keeps its style (already set to "r" or "m")
                 }
               }
             }
