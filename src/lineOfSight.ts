@@ -811,7 +811,7 @@ export function step(draw: boolean = false) {
             if (!isCharged) {
               // Start charging if not already
               if (!mob[8] || mob[8] === 0) {
-                mob[8] = MANTICORE_CHARGE_TIME; // Start at 10
+                mob[8] = MANTICORE_CHARGE_TIME;
                 
                 // Check if another manticore is already charging/charged
                 let inheritStyle = null;
