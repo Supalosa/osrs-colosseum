@@ -800,7 +800,7 @@ export function step(draw: boolean = false) {
             if (!isCharged) {
               // Start charging if not already
               if (!mob[8] || mob[8] === 0) {
-                mob[8] = MANTICORE_CHARGE_TIME;
+                mob[8] = MANTICORE_CHARGE_TIME + 1; // +1 because we decrement same tick
                 // Determine attack style for unknown manticores
                 if (mob[6] === "u" || !mob[6]) {
                   // Check if another manticore is alive (not just charged)
