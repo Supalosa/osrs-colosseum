@@ -27,3 +27,7 @@
 .ManticoreOverlay .orb.melee::before {
     background-color: #FF0000CC;
 }
+
+.ManticoreOverlay.uncharged .orb::before {
+    opacity: 0.35;
+}

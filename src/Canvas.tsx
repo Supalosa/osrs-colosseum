@@ -12,6 +12,7 @@ import {
   reset,
   initCanvas,
   onCanvasDblClick,
+  onCanvasRightClick,
   onCanvasMouseWheel,
   onCanvasMouseDown,
   onCanvasMouseUp,
@@ -107,7 +108,7 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(
         ref={canvasRef}
         id="map"
         onSelect={() => false}
-        onContextMenu={() => false}
+        onContextMenu={onCanvasRightClick}
         onMouseDown={onCanvasMouseDown}
         onMouseUp={(e) => {
           onCanvasMouseUp(e);

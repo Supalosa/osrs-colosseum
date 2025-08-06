@@ -35,14 +35,19 @@ const MODE_PLAYER = 0;
 export const MANTICORE = 4;
 const MANTICORE_RANGE_FIRST = "r";
 const MANTICORE_MAGE_FIRST = "m";
+const MANTICORE_UNCHARGED_RANGE = "ur";
+const MANTICORE_UNCHARGED_MAGE = "um";
 const MANTICORE_ATTACKS = ["lime", "blue", "red"];
 const DEFAULT_MANTICORE_MODE = MANTICORE_RANGE_FIRST;
 // values are indexes into MANTICORE_ATTACKS
 const MANTICORE_PATTERNS: { [patternName: string]: number[] } = {
   [MANTICORE_RANGE_FIRST]: [0, 1, 2],
   [MANTICORE_MAGE_FIRST]: [1, 0, 2],
+  [MANTICORE_UNCHARGED_RANGE]: [0, 1, 2],
+  [MANTICORE_UNCHARGED_MAGE]: [1, 0, 2],
 };
 const MANTICORE_DELAY = 5;
+const MANTICORE_CHARGE_TIME = 10;
 
 const MINOTAUR = 5;
 const MINOTAUR_HEAL_RANGE = 7;
@@ -226,6 +231,37 @@ export const onCanvasDblClick = function (e: React.MouseEvent) {
   }
 };
 
+export const onCanvasRightClick = function (e: React.MouseEvent) {
+  e.preventDefault();
+  var x = e.nativeEvent.offsetX;
+  var y = e.nativeEvent.offsetY;
+  x = Math.floor(x / size);
+  y = Math.floor(y / size);
+  if (x < MAP_WIDTH) {
+    for (var i = 0; i < mobs.length; i++) {
+      if (doesCollide(x, y, 1, mobs[i][0], mobs[i][1], SIZE[mobs[i][2]])) {
+        // Only toggle charged state for manticores
+        if (mobs[i][2] === MANTICORE) {
+          const isCurrentlyCharged = mobs[i][7] !== false;
+          const currentExtra = mobs[i][6];
+          
+          // Don't toggle unknown manticores
+          if (currentExtra === "u") {
+            break;
+          }
+          
+          // Toggle charged state
+          mobs[i][7] = !isCurrentlyCharged;
+          mobs[i][8] = 0; // Reset charging ticks
+        }
+        break;
+      }
+    }
+    drawWave();
+  }
+  return false;
+};
+
 export const onCanvasMouseWheel = function (e: React.WheelEvent) {
   if (e.deltaY > 0) {
     step();
@@ -318,9 +354,33 @@ function loadSpawns() {
     } else {
       var lx = parseInt(spawn[i].slice(0, 2));
       var ly = parseInt(spawn[i].slice(2, 4));
-      var lm = parseInt(spawn[i].slice(4));
+      var lm = parseInt(spawn[i].slice(4, 5));
       var extra = spawn[i].slice(5) || null;
-      mobs.push([lx, ly, lm, lx, ly, 0, extra as MobExtra]);
+      
+      const newMob: Mob = [lx, ly, lm, lx, ly, 0, extra as MobExtra];
+      
+      // Handle uncharged manticores
+      if (lm === MANTICORE) {
+        var isCharged = true;
+        var chargingTicks = 0;
+        
+        if (extra) {
+          if (extra === "u") {
+            isCharged = false;
+            newMob[6] = null; // Will be determined randomly when it charges
+          } else if (extra === "ur") {
+            isCharged = false;
+            newMob[6] = "r" as MobExtra;
+          } else if (extra === "um") {
+            isCharged = false;
+            newMob[6] = "m" as MobExtra;
+          }
+        }
+        
+        newMob.push(isCharged, chargingTicks);
+      }
+      
+      mobs.push(newMob);
     }
   }
   sortMobs();
@@ -374,8 +434,23 @@ export function getSpawnUrl(mobSpecs: MobSpec[]) {
   return url;
 }
 
-const getMobSpec = (mob: Mob): MobSpec =>
-  [mob[0], mob[1], mob[2], mob[6]] as MobSpec;
+const getMobSpec = (mob: Mob): MobSpec => {
+  let extra = mob[6];
+  // For manticores, encode charged state in the extra field
+  if (mob[2] === MANTICORE) {
+    const isCharged = mob[7] !== false;
+    if (!isCharged) {
+      if (!extra) {
+        extra = "u"; // Unknown uncharged
+      } else if (extra === "r") {
+        extra = "ur"; // Uncharged range-first
+      } else if (extra === "m") {
+        extra = "um"; // Uncharged mage-first
+      }
+    }
+  }
+  return [mob[0], mob[1], mob[2], extra] as MobSpec;
+};
 
 export function copySpawnURL() {
   const mobSpecs = mobs.filter((mob) => mob[2] > MODE_PLAYER).map(getMobSpec);
@@ -629,7 +704,8 @@ export function place() {
           return;
         }
       }
-      mobs.push([
+      // Create mob array
+      const newMob: Mob = [
         cursorLocation[0],
         cursorLocation[1],
         mode,
@@ -637,7 +713,19 @@ export function place() {
         cursorLocation[1],
         0,
         modeExtra,
-      ]);
+      ];
+      
+      // Only add charged state for manticores
+      if (mode === MANTICORE) {
+        let isCharged = true;
+        let chargingTicks = 0;
+        if (modeExtra === "u" || modeExtra === "ur" || modeExtra === "um") {
+          isCharged = false;
+        }
+        newMob.push(isCharged, chargingTicks);
+      }
+      
+      mobs.push(newMob);
       sortMobs();
     } else {
       selected = [...cursorLocation];
@@ -706,16 +794,101 @@ export function step(draw: boolean = false) {
         y = mob[1];
         //attack
         if (canAttack && hasLOS(x, y, selected[0], selected[1], s, r, true)) {
-          if (mob[5] <= 0) {
-            if (mob[2] === MANTICORE) {
-              if (!manticoreFiredThisTick) {
-                manticoreTicksRemaining[i] = 3;
-                attacked = 1;
-                mob[5] = CD[t];
-                // Delay any other mantis if they are ready to attack
-                manticoreFiredThisTick = true;
+          if (mob[2] === MANTICORE) {
+            // Handle uncharged manticores
+            const isCharged = mob[7] !== false;
+            if (!isCharged) {
+              // Start charging if not already
+              if (!mob[8] || mob[8] === 0) {
+                mob[8] = MANTICORE_CHARGE_TIME;
+                // Determine attack style for unknown manticores
+                if (mob[6] === "u" || !mob[6]) {
+                  // Check if another manticore is alive (not just charged)
+                  let inheritStyle = null;
+                  for (let j = 0; j < mobs.length; j++) {
+                    if (j !== i && mobs[j][2] === MANTICORE) {
+                      // Get the other manticore's style (even if it's uncharged)
+                      const otherExtra = mobs[j][6];
+                      if (otherExtra && otherExtra !== "u") {
+                        // Extract the actual style from ur/um
+                        if (otherExtra === "ur") {
+                          inheritStyle = "r";
+                        } else if (otherExtra === "um") {
+                          inheritStyle = "m";
+                        } else {
+                          inheritStyle = otherExtra;
+                        }
+                        break;
+                      }
+                    }
+                  }
+                  // If we found another manticore with a known style, inherit it
+                  if (inheritStyle) {
+                    mob[6] = inheritStyle as MobExtra;
+                  } else {
+                    // Otherwise pick randomly
+                    mob[6] = (Math.random() < 0.5 ? "r" : "m") as MobExtra;
+                  }
+                } else if (mob[6] === "ur" || mob[6] === "um") {
+                  // For known uncharged manticores, check if we should override with another manticore's style
+                  let shouldOverride = false;
+                  let overrideStyle = null;
+                  
+                  for (let j = 0; j < mobs.length; j++) {
+                    if (j !== i && mobs[j][2] === MANTICORE) {
+                      // If another manticore is alive and already attacking/charged
+                      const chargingTicks = mobs[j][8];
+                      if (mobs[j][7] !== false || (chargingTicks !== undefined && chargingTicks > 0)) {
+                        const otherExtra = mobs[j][6];
+                        if (otherExtra && otherExtra !== "u") {
+                          shouldOverride = true;
+                          if (otherExtra === "ur") {
+                            overrideStyle = "r";
+                          } else if (otherExtra === "um") {
+                            overrideStyle = "m";
+                          } else {
+                            overrideStyle = otherExtra;
+                          }
+                          break;
+                        }
+                      }
+                    }
+                  }
+                  
+                  if (shouldOverride && overrideStyle) {
+                    mob[6] = overrideStyle as MobExtra;
+                  } else {
+                    // Use the known style
+                    mob[6] = (mob[6] === "ur" ? "r" : "m") as MobExtra;
+                  }
+                }
               }
-            } else {
+              // Decrement charging timer
+              if (mob[8] > 1) {
+                mob[8]--;
+              } else if (mob[8] === 1) {
+                // Finish charging
+                mob[8] = 0;
+                mob[7] = true;
+                mob[5] = 0; // Ready to attack immediately
+              }
+            }
+            
+            // Attack if charged and ready
+            if (isCharged || mob[7]) {
+              if (mob[5] <= 0) {
+                if (!manticoreFiredThisTick) {
+                  manticoreTicksRemaining[i] = 3;
+                  attacked = 1;
+                  mob[5] = CD[t];
+                  // Delay any other mantis if they are ready to attack
+                  manticoreFiredThisTick = true;
+                }
+              }
+            }
+          } else {
+            // Non-manticore attacks
+            if (mob[5] <= 0) {
               attacked = 1;
               mob[5] = CD[t];
             }
@@ -752,7 +925,7 @@ export function step(draw: boolean = false) {
 }
 function delayAllReadyMantis(ticks: number) {
   mobs
-    .filter((mob) => mob[2] === MANTICORE && mob[5] <= 0)
+    .filter((mob) => mob[2] === MANTICORE && mob[5] <= 0 && mob[7] !== false)
     .forEach((mob) => {
       mob[5] = ticks;
     });
@@ -783,6 +956,16 @@ export function reset() {
     mobs[i][0] = mobs[i][3];
     mobs[i][1] = mobs[i][4];
     mobs[i][5] = 0;
+    
+    // Reset charging state for manticores
+    if (mobs[i][2] === MANTICORE) {
+      const extra = mobs[i][6];
+      // Preserve the uncharged state if it was initially uncharged
+      if (extra === "ur" || extra === "um" || extra === "u") {
+        mobs[i][7] = false;
+        mobs[i][8] = 0;
+      }
+    }
   }
   manticoreTicksRemaining = {};
   tape = [];
@@ -874,7 +1057,7 @@ export function drawWave() {
   ctx.clearRect(0, 0, mapElement.width, mapElement.height);
 
   const scale = (p: number) => p * size;
-  function drawManticorePattern(pattern: number[], x: number, y: number) {
+  function drawManticorePattern(pattern: number[], x: number, y: number, isTransparent: boolean = false) {
     pattern.forEach((colorIndex, index) => {
       if (!ctx) {
         return;
@@ -882,9 +1065,15 @@ export function drawWave() {
       const color = MANTICORE_ATTACKS[colorIndex];
       ctx.strokeStyle = color;
       ctx.fillStyle = color;
+      if (isTransparent) {
+        ctx.globalAlpha = 0.35;
+      }
       ctx.beginPath();
       ctx.arc(scale(x + 2.5), scale(y - index + 0.5), size / 2, 0, Math.PI * 2);
       ctx.fill();
+      if (isTransparent) {
+        ctx.globalAlpha = 1;
+      }
     });
   }
 
@@ -1057,8 +1246,13 @@ export function drawWave() {
       );
     }
     if (mode === MANTICORE && modeExtra) {
-      const colorPattern = MANTICORE_PATTERNS[modeExtra];
-      drawManticorePattern(colorPattern, cursorLocation[0], cursorLocation[1]);
+      // Don't draw orbs for unknown manticores
+      if (modeExtra !== "u") {
+        const actualExtra = modeExtra === "ur" ? "r" : modeExtra === "um" ? "m" : modeExtra;
+        const colorPattern = MANTICORE_PATTERNS[actualExtra];
+        const isUncharged = modeExtra === "ur" || modeExtra === "um";
+        drawManticorePattern(colorPattern, cursorLocation[0], cursorLocation[1], isUncharged);
+      }
     }
     ctx.globalAlpha = 1;
   }
@@ -1133,7 +1327,8 @@ export function drawWave() {
     const mobExtra = mobs[i][6];
     if (t === MANTICORE && mobExtra !== null) {
       const colorPattern = MANTICORE_PATTERNS[mobExtra];
-      drawManticorePattern(colorPattern, x, y);
+      const isUncharged = mobs[i][7] === false;
+      drawManticorePattern(colorPattern, x, y, isUncharged);
     }
 
     // only odd-size npcs are healable for now

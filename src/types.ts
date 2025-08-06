@@ -6,7 +6,9 @@ export type MobType = number;
 export type MobSpawnX = number;
 export type MobSpawnY = number;
 export type MobCooldown = number;
-export type MobExtra = "r" | "m" | null;
+export type MobExtra = "r" | "m" | "u" | "ur" | "um" | null;
+export type MobCharged = boolean;
+export type MobChargingTicks = number;
 export type Mob = [
   MobX,
   MobY,
@@ -14,7 +16,9 @@ export type Mob = [
   MobSpawnX,
   MobSpawnY,
   MobCooldown,
-  MobExtra
+  MobExtra,
+  MobCharged?,
+  MobChargingTicks?
 ];
 export type MobSpec = [MobSpawnX, MobSpawnY, MobType, MobExtra];
 

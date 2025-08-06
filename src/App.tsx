@@ -112,6 +112,14 @@ function App() {
         />
         <UnitButton
           mode={4}
+          extra="u"
+          overlay={null}
+          image="./manticore.png"
+          borderColor="purple"
+          tooltip="Place an Unknown Uncharged Manticore by dragging onto the map."
+        />
+        <UnitButton
+          mode={4}
           extra="r"
           overlay={<ManticoreOverlay order={["range", "mage", "melee"]} />}
           image="./manticore.png"
