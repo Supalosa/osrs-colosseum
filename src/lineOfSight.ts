@@ -243,16 +243,23 @@ export const onCanvasRightClick = function (e: React.MouseEvent) {
         // Only toggle charged state for manticores
         if (mobs[i][2] === MANTICORE) {
           const isCurrentlyCharged = mobs[i][7] !== false;
-          const currentExtra = mobs[i][6];
+          const originalExtra = mobs[i][9];
           
           // Don't toggle unknown manticores
-          if (currentExtra === "u") {
+          if (originalExtra === "u") {
             break;
           }
           
           // Toggle charged state
           mobs[i][7] = !isCurrentlyCharged;
           mobs[i][8] = 0; // Reset charging ticks
+          
+          // Update the original extra to reflect the new charged state
+          if (originalExtra === "r" || originalExtra === "ur") {
+            mobs[i][9] = isCurrentlyCharged ? "ur" : "r";
+          } else if (originalExtra === "m" || originalExtra === "um") {
+            mobs[i][9] = isCurrentlyCharged ? "um" : "m";
+          }
         }
         break;
       }
@@ -363,6 +370,7 @@ function loadSpawns() {
       if (lm === MANTICORE) {
         var isCharged = true;
         var chargingTicks = 0;
+        var originalExtra = extra as MobExtra; // Store the original state
         
         if (extra) {
           if (extra === "u") {
@@ -377,7 +385,7 @@ function loadSpawns() {
           }
         }
         
-        newMob.push(isCharged, chargingTicks);
+        newMob.push(isCharged, chargingTicks, originalExtra);
       }
       
       mobs.push(newMob);
@@ -435,21 +443,12 @@ export function getSpawnUrl(mobSpecs: MobSpec[]) {
 }
 
 const getMobSpec = (mob: Mob): MobSpec => {
-  let extra = mob[6];
-  // For manticores, encode charged state in the extra field
-  if (mob[2] === MANTICORE) {
-    const isCharged = mob[7] !== false;
-    if (!isCharged) {
-      if (!extra) {
-        extra = "u"; // Unknown uncharged
-      } else if (extra === "r") {
-        extra = "ur"; // Uncharged range-first
-      } else if (extra === "m") {
-        extra = "um"; // Uncharged mage-first
-      }
-    }
+  // For manticores, use the original extra value if it exists
+  if (mob[2] === MANTICORE && mob[9] !== undefined) {
+    return [mob[0], mob[1], mob[2], mob[9]] as MobSpec;
   }
-  return [mob[0], mob[1], mob[2], extra] as MobSpec;
+  // For non-manticores or old format, use the current extra value
+  return [mob[0], mob[1], mob[2], mob[6]] as MobSpec;
 };
 
 export function copySpawnURL() {
@@ -480,7 +479,10 @@ export function copyReplayURL() {
         (value >> 16) & 0xff,
         (value >> 24) & 0xff,
         mobs[mobIdx][2],
-        mobs[mobIdx][6],
+        // Use original extra value for manticores if available
+        mobs[mobIdx][2] === MANTICORE && mobs[mobIdx][9] !== undefined
+          ? mobs[mobIdx][9]
+          : mobs[mobIdx][6],
       ] as MobSpec
   );
   var url = getReplayURL(mobSpecs, playerTicks, fromWaveStart);
@@ -719,10 +721,11 @@ export function place() {
       if (mode === MANTICORE) {
         let isCharged = true;
         let chargingTicks = 0;
+        let originalExtra = modeExtra; // Store the original state
         if (modeExtra === "u" || modeExtra === "ur" || modeExtra === "um") {
           isCharged = false;
         }
-        newMob.push(isCharged, chargingTicks);
+        newMob.push(isCharged, chargingTicks, originalExtra);
       }
       
       mobs.push(newMob);
@@ -969,13 +972,29 @@ export function reset() {
     mobs[i][1] = mobs[i][4];
     mobs[i][5] = 0;
     
-    // Reset charging state for manticores
+    // Reset manticores to their original state
     if (mobs[i][2] === MANTICORE) {
-      const extra = mobs[i][6];
-      // Preserve the uncharged state if it was initially uncharged
-      if (extra === "ur" || extra === "um" || extra === "u") {
-        mobs[i][7] = false;
-        mobs[i][8] = 0;
+      const originalExtra = mobs[i][9];
+      if (originalExtra !== undefined) {
+        // Restore the original extra value
+        if (originalExtra === "u") {
+          mobs[i][6] = null; // Will be determined randomly again
+          mobs[i][7] = false;
+          mobs[i][8] = 0;
+        } else if (originalExtra === "ur") {
+          mobs[i][6] = "r" as MobExtra;
+          mobs[i][7] = false;
+          mobs[i][8] = 0;
+        } else if (originalExtra === "um") {
+          mobs[i][6] = "m" as MobExtra;
+          mobs[i][7] = false;
+          mobs[i][8] = 0;
+        } else {
+          // Charged manticores (r or m)
+          mobs[i][6] = originalExtra;
+          mobs[i][7] = true;
+          mobs[i][8] = 0;
+        }
       }
     }
   }

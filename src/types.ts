@@ -9,6 +9,7 @@ export type MobCooldown = number;
 export type MobExtra = "r" | "m" | "u" | "ur" | "um" | null;
 export type MobCharged = boolean;
 export type MobChargingTicks = number;
+export type MobOriginalExtra = MobExtra; // Stores the original extra value for manticores
 export type Mob = [
   MobX,
   MobY,
@@ -18,7 +19,8 @@ export type Mob = [
   MobCooldown,
   MobExtra,
   MobCharged?,
-  MobChargingTicks?
+  MobChargingTicks?,
+  MobOriginalExtra?
 ];
 export type MobSpec = [MobSpawnX, MobSpawnY, MobType, MobExtra];
 
