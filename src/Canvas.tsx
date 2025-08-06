@@ -18,6 +18,7 @@ import {
   onCanvasMouseUp,
   onCanvasMouseMove,
   setFromWaveStart,
+  setMantimayhem3,
   setShowVenatorBounce,
   handleKeyDown,
   LoSListener,
@@ -28,8 +29,10 @@ import {
 
 export type CanvasProps = LoSListener & {
   fromWaveStart: boolean;
+  mantimayhem3: boolean;
   showVenatorBounce: boolean;
   onMouseUp: React.MouseEventHandler;
+  onMantimayhem3Changed: (mantimayhem3: boolean) => void;
 };
 
 export type CanvasHandle = {
@@ -49,12 +52,14 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(
   (props, ref) => {
     const {
       fromWaveStart,
+      mantimayhem3,
       showVenatorBounce,
       onHasReplayChanged,
       onIsReplayingChanged,
       onCanSaveReplayChanged,
       onReplayTickChanged,
       onFromWaveStartChanged,
+      onMantimayhem3Changed,
       onMouseUp,
     } = props;
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -65,6 +70,7 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(
       onIsReplayingChanged,
       onReplayTickChanged,
       onFromWaveStartChanged,
+      onMantimayhem3Changed,
     };
 
     useEffect(() => {
@@ -87,6 +93,11 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(
       setShowVenatorBounce(showVenatorBounce);
       drawWave();
     }, [showVenatorBounce]);
+
+    useEffect(() => {
+      setMantimayhem3(mantimayhem3);
+      drawWave();
+    }, [mantimayhem3]);
 
     useImperativeHandle(ref, () => ({
       step: () => {

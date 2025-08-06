@@ -9,6 +9,7 @@ function App() {
 
   // note: this is a bit janky (it's set here on first mount + in lineOnSight in parse)
   const [fromWaveStart, setFromWaveStart] = useState(parent.location.hash?.endsWith("ws"));
+  const [mantimayhem3, setMantimayhem3] = useState(parent.location.hash?.includes("mm3"));
   const [showVenatorBounce, setShowVenatorBounce] = useState(false);
 
   const [currentReplayLength, setCurrentReplayLength] = useState<number | null>(
@@ -147,6 +148,43 @@ function App() {
           tooltip="Place a Shockwave Colossus by dragging onto the map."
         />
       </div>
+      {mantimayhem3 && (
+        <div className="frame">
+          <span style={{ marginRight: '8px' }}>MM3:</span>
+          <UnitButton
+            mode={4}
+            extra="Mrm"
+            overlay={<ManticoreOverlay order={["melee", "range", "mage"]} />}
+            image="./manticore.png"
+            borderColor="purple"
+            tooltip="MM3: Place a charged Manticore (melee-range-mage) by dragging onto the map. Toggle charged/uncharged by right clicking"
+          />
+          <UnitButton
+            mode={4}
+            extra="Mmr"
+            overlay={<ManticoreOverlay order={["melee", "mage", "range"]} />}
+            image="./manticore.png"
+            borderColor="purple"
+            tooltip="MM3: Place a charged Manticore (melee-mage-range) by dragging onto the map. Toggle charged/uncharged by right clicking"
+          />
+          <UnitButton
+            mode={4}
+            extra="rMm"
+            overlay={<ManticoreOverlay order={["range", "melee", "mage"]} />}
+            image="./manticore.png"
+            borderColor="purple"
+            tooltip="MM3: Place a charged Manticore (range-melee-mage) by dragging onto the map. Toggle charged/uncharged by right clicking"
+          />
+          <UnitButton
+            mode={4}
+            extra="mMr"
+            overlay={<ManticoreOverlay order={["mage", "melee", "range"]} />}
+            image="./manticore.png"
+            borderColor="purple"
+            tooltip="MM3: Place a charged Manticore (mage-melee-range) by dragging onto the map. Toggle charged/uncharged by right clicking"
+          />
+        </div>
+      )}
       <div className="frame">
         Toggle:
         <button
@@ -180,6 +218,17 @@ function App() {
             role="tooltip"
           />
           <span>From wave start</span>
+        </div>
+        <div>
+          <input
+            type="checkbox"
+            checked={mantimayhem3 ? true : false}
+            onChange={(e) => setMantimayhem3(e.target.checked)}
+            aria-label="Mantimayhem 3: Manticores can have random orb attack orders"
+            data-microtip-position="bottom"
+            role="tooltip"
+          />
+          <span>Mantimayhem 3</span>
         </div>
         <div>
           <input
@@ -228,6 +277,7 @@ function App() {
         ref={canvas}
         showVenatorBounce={showVenatorBounce}
         fromWaveStart={fromWaveStart}
+        mantimayhem3={mantimayhem3}
         onCanSaveReplayChanged={setCanSaveReplay}
         onHasReplayChanged={(_hasReplay, replayLength) =>
           setCurrentReplayLength(replayLength ?? null)
@@ -235,6 +285,7 @@ function App() {
         onIsReplayingChanged={setIsReplaying}
         onReplayTickChanged={setReplayTick}
         onFromWaveStartChanged={setFromWaveStart}
+        onMantimayhem3Changed={setMantimayhem3}
         onMouseUp={handleMaybeDrop}
       />
       <p className="footer">
