@@ -727,10 +727,11 @@ export function place() {
       // Only add charged state for manticores
       if (mode === MANTICORE) {
         let isCharged = true;
-        let chargingTicks = 0;
+        let chargingTicks = undefined;
         let originalExtra = modeExtra; // Store the original state (including "u")
         if (modeExtra === "u" || modeExtra === "ur" || modeExtra === "um") {
           isCharged = false;
+          chargingTicks = 0;
         }
         newMob.push(isCharged, chargingTicks, originalExtra);
       }
@@ -768,6 +769,82 @@ export function step(draw: boolean = false) {
     const canGainLos = fromWaveStart ? tickCount > 1 : true;
     var line: TapeEntry = [];
     let manticoreFiredThisTick = false;
+    
+    // First pass: identify which manticores will start charging this tick
+    let manticoresStartingToCharge: number[] = [];
+    for (var i = 0; i < mobs.length; i++) {
+      if (mobs[i][2] === MANTICORE) {
+        const mob = mobs[i];
+        const isCharged = mob[7] !== false;
+        const chargingTicks = mob[8];
+        const x = mob[0];
+        const y = mob[1];
+        
+        if (!isCharged && (!chargingTicks || chargingTicks === 0) && 
+            canAttack && hasLOS(x, y, selected[0], selected[1], SIZE[MANTICORE], RANGE[MANTICORE], true)) {
+          manticoresStartingToCharge.push(i);
+        }
+      }
+    }
+    
+    // Determine if there's an established style from already charging/charged manticores
+    let establishedStyle: string | null = null;
+    for (var i = 0; i < mobs.length; i++) {
+      if (mobs[i][2] === MANTICORE && !manticoresStartingToCharge.includes(i)) {
+        const mob = mobs[i];
+        const otherChargingTicks = mob[8];
+        const otherIsCharged = mob[7];
+        const otherOriginalExtra = mob[9];
+        
+        if ((otherChargingTicks && otherChargingTicks > 0 && otherChargingTicks < MANTICORE_CHARGE_TIME) ||
+            (otherIsCharged && (otherOriginalExtra === "u" || otherOriginalExtra === "um" || otherOriginalExtra === "ur")) ||
+            (otherIsCharged && (otherOriginalExtra === "r" || otherOriginalExtra === "m"))) {
+          const otherExtra = mob[6];
+          if (otherExtra === "r" || otherExtra === "m") {
+            establishedStyle = otherExtra;
+            break;
+          }
+        }
+      }
+    }
+    
+    // Determine styles for manticores starting to charge
+    let simultaneousUM = false;
+    let simultaneousUR = false;
+    if (!establishedStyle && manticoresStartingToCharge.length > 0) {
+      // Check what types are starting simultaneously
+      for (const idx of manticoresStartingToCharge) {
+        const originalExtra = mobs[idx][9];
+        if (originalExtra === "um") simultaneousUM = true;
+        if (originalExtra === "ur") simultaneousUR = true;
+      }
+    }
+    
+    // Assign styles to manticores starting to charge
+    for (const idx of manticoresStartingToCharge) {
+      const mob = mobs[idx];
+      const originalExtra = mob[9];
+      mob[8] = MANTICORE_CHARGE_TIME;
+      
+      if (establishedStyle) {
+        mob[6] = establishedStyle as MobExtra;
+      } else {
+        if (originalExtra === "um") {
+          mob[6] = "m" as MobExtra;
+        } else if (originalExtra === "ur") {
+          mob[6] = "r" as MobExtra;
+        } else if (originalExtra === "u") {
+          if (simultaneousUM) {
+            mob[6] = "m" as MobExtra;
+          } else if (simultaneousUR) {
+            mob[6] = "r" as MobExtra;
+          } else {
+            mob[6] = (Math.random() < 0.5 ? "r" : "m") as MobExtra;
+          }
+        }
+      }
+    }
+    
     for (var i = 0; i < mobs.length; i++) {
       if (mobs[i][2] < 8) {
         var mob = mobs[i];
@@ -806,47 +883,8 @@ export function step(draw: boolean = false) {
         //attack
         if (canAttack && hasLOS(x, y, selected[0], selected[1], s, r, true)) {
           if (mob[2] === MANTICORE) {
-            // Handle uncharged manticores
+            // Attack if charged and ready (charging logic handled in first pass)
             const isCharged = mob[7] !== false;
-            if (!isCharged) {
-              // Start charging if not already
-              if (!mob[8] || mob[8] === 0) {
-                mob[8] = MANTICORE_CHARGE_TIME;
-                
-                // Check if another manticore is already charging/charged
-                let inheritStyle = null;
-                for (let j = 0; j < mobs.length; j++) {
-                  if (j !== i && mobs[j][2] === MANTICORE) {
-                    const otherChargingTicks = mobs[j][8];
-                    const otherIsCharged = mobs[j][7] !== false;
-                    // Check if the other manticore has started charging or is charged
-                    if (otherIsCharged || (otherChargingTicks !== undefined && otherChargingTicks > 0)) {
-                      // Get the actual style the other manticore is using
-                      const otherExtra = mobs[j][6];
-                      if (otherExtra === "r" || otherExtra === "m") {
-                        inheritStyle = otherExtra;
-                        break;
-                      }
-                    }
-                  }
-                }
-                
-                // Determine attack style based on whether we found another charging manticore
-                if (inheritStyle) {
-                  // Always inherit from a charging/charged manticore if one exists
-                  mob[6] = inheritStyle as MobExtra;
-                } else {
-                  // No other manticore is charging/charged
-                  if (mob[6] === null) {
-                    // Unknown manticore - pick randomly
-                    mob[6] = (Math.random() < 0.5 ? "r" : "m") as MobExtra;
-                  }
-                  // Otherwise, known uncharged manticore keeps its style (already set to "r" or "m")
-                }
-              }
-            }
-            
-            // Attack if charged and ready
             if (isCharged || mob[7]) {
               if (mob[5] <= 0) {
                 if (!manticoreFiredThisTick) {
