@@ -800,7 +800,7 @@ export function step(draw: boolean = false) {
             if (!isCharged) {
               // Start charging if not already
               if (!mob[8] || mob[8] === 0) {
-                mob[8] = MANTICORE_CHARGE_TIME + 1; // +1 because we decrement same tick
+                mob[8] = MANTICORE_CHARGE_TIME; // Start at 10
                 // Determine attack style for unknown manticores
                 if (mob[6] === "u" || !mob[6]) {
                   // Check if another manticore is alive (not just charged)
@@ -863,15 +863,6 @@ export function step(draw: boolean = false) {
                   }
                 }
               }
-              // Decrement charging timer
-              if (mob[8] > 1) {
-                mob[8]--;
-              } else if (mob[8] === 1) {
-                // Finish charging
-                mob[8] = 0;
-                mob[7] = true;
-                mob[5] = 0; // Ready to attack immediately
-              }
             }
             
             // Attack if charged and ready
@@ -915,6 +906,27 @@ export function step(draw: boolean = false) {
     if (manticoreFiredThisTick) {
       delayAllReadyMantis(MANTICORE_DELAY);
     }
+    
+    // Handle manticore charging countdown (after all movement/attacks processed)
+    for (var i = 0; i < mobs.length; i++) {
+      if (mobs[i][2] === MANTICORE) {
+        const isCharged = mobs[i][7] !== false;
+        const chargingTicks = mobs[i][8];
+        
+        // Continue charging if already started
+        if (!isCharged && chargingTicks && chargingTicks > 0) {
+          if (chargingTicks > 1) {
+            mobs[i][8] = chargingTicks - 1;
+          } else if (chargingTicks === 1) {
+            // Finish charging
+            mobs[i][8] = 0;
+            mobs[i][7] = true;
+            mobs[i][5] = 0; // Ready to attack immediately
+          }
+        }
+      }
+    }
+    
     playerTape.push([selected[0], selected[1]]);
     tape.push(line);
   }
