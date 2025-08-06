@@ -707,6 +707,13 @@ export function place() {
         }
       }
       // Create mob array
+      let effectiveExtra = modeExtra;
+      
+      // For unknown manticores, set the effective extra to null (will be determined when charging)
+      if (mode === MANTICORE && modeExtra === "u") {
+        effectiveExtra = null;
+      }
+      
       const newMob: Mob = [
         cursorLocation[0],
         cursorLocation[1],
@@ -714,14 +721,14 @@ export function place() {
         cursorLocation[0],
         cursorLocation[1],
         0,
-        modeExtra,
+        effectiveExtra,
       ];
       
       // Only add charged state for manticores
       if (mode === MANTICORE) {
         let isCharged = true;
         let chargingTicks = 0;
-        let originalExtra = modeExtra; // Store the original state
+        let originalExtra = modeExtra; // Store the original state (including "u")
         if (modeExtra === "u" || modeExtra === "ur" || modeExtra === "um") {
           isCharged = false;
         }
@@ -730,14 +737,15 @@ export function place() {
       
       mobs.push(newMob);
       sortMobs();
+      // Only reset mode after successfully placing an NPC
+      mode = 0;
+      modeExtra = null;
     } else {
       selected = [...cursorLocation];
     }
     cursorLocation = null;
+    drawWave();
   }
-  mode = 0;
-  modeExtra = null;
-  drawWave();
 }
 export function step(draw: boolean = false) {
   if (replay && replayTick !== null) {
@@ -866,7 +874,11 @@ export function step(draw: boolean = false) {
     Object.entries(manticoreTicksRemaining).forEach(([idx, ticks]) => {
       const index = Number(idx);
       if (ticks > 0 && mobs[index]) {
-        const manticoreMode = mobs[index][6] || DEFAULT_MANTICORE_MODE;
+        let manticoreMode = mobs[index][6];
+        // Handle unknown/uncharged manticores
+        if (!manticoreMode || manticoreMode === "u") {
+          manticoreMode = DEFAULT_MANTICORE_MODE;
+        }
         const manticoreStyles = MANTICORE_PATTERNS[manticoreMode];
         const currentStyle = manticoreStyles[3 - ticks];
         const prevLine = line[index];
@@ -1326,7 +1338,7 @@ export function drawWave() {
       );
     }
     const mobExtra = mobs[i][6];
-    if (t === MANTICORE && mobExtra !== null) {
+    if (t === MANTICORE && mobExtra !== null && mobExtra !== "u") {
       const colorPattern = MANTICORE_PATTERNS[mobExtra];
       const isUncharged = mobs[i][7] === false;
       drawManticorePattern(colorPattern, x, y, isUncharged);
