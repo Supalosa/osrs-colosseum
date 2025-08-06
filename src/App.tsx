@@ -112,11 +112,19 @@ function App() {
         />
         <UnitButton
           mode={4}
+          extra="u"
+          overlay={null}
+          image="./manticore.png"
+          borderColor="purple"
+          tooltip="Place an Unknown Manticore by dragging onto the map."
+        />
+        <UnitButton
+          mode={4}
           extra="r"
           overlay={<ManticoreOverlay order={["range", "mage", "melee"]} />}
           image="./manticore.png"
           borderColor="purple"
-          tooltip="Place a Manticore (range first) by dragging onto the map."
+          tooltip="Place a charged Manticore (range first) by dragging onto the map. Toggle charged/uncharged by right clicking"
         />
         <UnitButton
           mode={4}
@@ -124,7 +132,7 @@ function App() {
           overlay={<ManticoreOverlay order={["mage", "range", "melee"]} />}
           image="./manticore.png"
           borderColor="purple"
-          tooltip="Place a Manticore (mage first) by dragging onto the map."
+          tooltip="Place a charged Manticore (mage first) by dragging onto the map. Toggle charged/uncharged by right clicking"
         />
         <UnitButton
           mode={5}
