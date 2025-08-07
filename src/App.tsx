@@ -84,23 +84,23 @@ function App() {
 
   return (
     <>
-      <div className="frame" onMouseUp={stopDragging}>
+      <div className="frame units-frame" onMouseUp={stopDragging}>
         {/* this div houses the clear & place npc buttons *column* */}
-        <div> 
+        <div className="controls-column"> 
           {/* this div houses the clear & place npc buttons *row* within the column*/}
-          <div>
+          <div className="controls-row">
             <button onClick={() => canvas.current?.remove()}>Clear</button>
             <button onClick={() => canvas.current?.place()}>Place NPC</button>
           </div>
           {/* this is the row below the clear & place npc buttons row that acts as a placeholder */}
-          <div>
-            {/* placeholder goes here, it should only be present when mm3 is enabled*/}
+          <div className="controls-placeholder">
+            {mantimayhem3 && <div style={{ height: '64px' }}></div>}
           </div>
         </div>
         {/* this div houses the player & npc buttons *column* */}
-        <div>
+        <div className="units-column">
           {/* this div houses the player & npc buttons *row* within the column */}
-          <div>
+          <div className="units-row">
             <UnitButton
               mode={0}
               image="./player.png"
@@ -164,7 +164,11 @@ function App() {
           </div>
           {/* this is the mantimayhem 3 units row that appear conditionally */}
           {mantimayhem3 && (
-          <div>
+          <div className="units-row mm3-row">
+            {/* 3 placeholder units on the left */}
+            <div style={{ width: 64, height: 64 }}></div>
+            <div style={{ width: 64, height: 64 }}></div>
+            <div style={{ width: 64, height: 64 }}></div>
             <UnitButton
               mode={4}
               extra="Mrm"
@@ -197,6 +201,9 @@ function App() {
               borderColor="purple"
               tooltip="MM3: Place a charged Manticore (mage-melee-range) by dragging onto the map. Toggle charged/uncharged by right clicking"
             />
+            {/* 2 placeholder units on the right */}
+            <div style={{ width: 64, height: 64 }}></div>
+            <div style={{ width: 64, height: 64 }}></div>
           </div>)}
         </div>
       </div>
