@@ -9,6 +9,7 @@ function App() {
 
   // note: this is a bit janky (it's set here on first mount + in lineOnSight in parse)
   const [fromWaveStart, setFromWaveStart] = useState(parent.location.hash?.endsWith("ws"));
+  const [mantimayhem3, setMantimayhem3] = useState(parent.location.hash?.includes("mm3"));
   const [showVenatorBounce, setShowVenatorBounce] = useState(false);
 
   const [currentReplayLength, setCurrentReplayLength] = useState<number | null>(
@@ -83,70 +84,130 @@ function App() {
 
   return (
     <>
-      <div className="frame" onMouseUp={stopDragging}>
-        <button onClick={() => canvas.current?.remove()}>Clear</button>
-        <button onClick={() => canvas.current?.place()}>Place NPC</button>
-        <UnitButton
-          mode={0}
-          image="./player.png"
-          borderColor="red"
-          tooltip="Place the Player by dragging onto the map."
-        />
-        <UnitButton
-          mode={1}
-          image="./serpent_shaman.png"
-          borderColor="cyan"
-          tooltip="Place a Serpent Shaman by dragging onto the map."
-        />
-        <UnitButton
-          mode={2}
-          image="./javelin_colossus.png"
-          borderColor="lime"
-          tooltip="Place a Javelin Colossus by dragging onto the map."
-        />
-        <UnitButton
-          mode={3}
-          image="./jaguar_warrior.png"
-          borderColor="orange"
-          tooltip="Place a Jaguar Warrior by dragging onto the map."
-        />
-        <UnitButton
-          mode={4}
-          extra="u"
-          overlay={null}
-          image="./manticore.png"
-          borderColor="purple"
-          tooltip="Place an Unknown Manticore by dragging onto the map."
-        />
-        <UnitButton
-          mode={4}
-          extra="r"
-          overlay={<ManticoreOverlay order={["range", "mage", "melee"]} />}
-          image="./manticore.png"
-          borderColor="purple"
-          tooltip="Place a charged Manticore (range first) by dragging onto the map. Toggle charged/uncharged by right clicking"
-        />
-        <UnitButton
-          mode={4}
-          extra="m"
-          overlay={<ManticoreOverlay order={["mage", "range", "melee"]} />}
-          image="./manticore.png"
-          borderColor="purple"
-          tooltip="Place a charged Manticore (mage first) by dragging onto the map. Toggle charged/uncharged by right clicking"
-        />
-        <UnitButton
-          mode={5}
-          image="./minotaur.png"
-          borderColor="purple"
-          tooltip="Place a Minotaur by dragging onto the map."
-        />
-        <UnitButton
-          mode={6}
-          image="./shockwave_colossus.png"
-          borderColor="purple"
-          tooltip="Place a Shockwave Colossus by dragging onto the map."
-        />
+      <div className="frame units-frame" onMouseUp={stopDragging}>
+        {/* this div houses the clear & place npc buttons *column* */}
+        <div className="controls-column"> 
+          {/* this div houses the clear & place npc buttons *row* within the column*/}
+          <div className="controls-row">
+            <button onClick={() => canvas.current?.remove()}>Clear</button>
+            <button onClick={() => canvas.current?.place()}>Place NPC</button>
+          </div>
+          {/* this is the row below the clear & place npc buttons row that acts as a placeholder */}
+          <div className="controls-placeholder">
+            {mantimayhem3 && <div style={{ height: '64px' }}></div>}
+          </div>
+        </div>
+        {/* this div houses the player & npc buttons *column* */}
+        <div className="units-column">
+          {/* this div houses the player & npc buttons *row* within the column */}
+          <div className="units-row">
+            <UnitButton
+              mode={0}
+              image="./player.png"
+              borderColor="red"
+              tooltip="Place the Player by dragging onto the map."
+            />
+            <UnitButton
+              mode={1}
+              image="./serpent_shaman.png"
+              borderColor="cyan"
+              tooltip="Place a Serpent Shaman by dragging onto the map."
+            />
+            <UnitButton
+              mode={2}
+              image="./javelin_colossus.png"
+              borderColor="lime"
+              tooltip="Place a Javelin Colossus by dragging onto the map."
+            />
+            <UnitButton
+              mode={3}
+              image="./jaguar_warrior.png"
+              borderColor="orange"
+              tooltip="Place a Jaguar Warrior by dragging onto the map."
+            />
+            <UnitButton
+              mode={4}
+              extra="u"
+              overlay={null}
+              image="./manticore.png"
+              borderColor="purple"
+              tooltip="Place an Unknown Manticore by dragging onto the map."
+            />
+            <UnitButton
+              mode={4}
+              extra="r"
+              overlay={<ManticoreOverlay order={["range", "mage", "melee"]} />}
+              image="./manticore.png"
+              borderColor="purple"
+              tooltip="Place a charged Manticore (range first) by dragging onto the map. Toggle charged/uncharged by right clicking"
+            />
+            <UnitButton
+              mode={4}
+              extra="m"
+              overlay={<ManticoreOverlay order={["mage", "range", "melee"]} />}
+              image="./manticore.png"
+              borderColor="purple"
+              tooltip="Place a charged Manticore (mage first) by dragging onto the map. Toggle charged/uncharged by right clicking"
+            />
+            <UnitButton
+              mode={5}
+              image="./minotaur.png"
+              borderColor="purple"
+              tooltip="Place a Minotaur by dragging onto the map."
+            />
+            <UnitButton
+              mode={6}
+              image="./shockwave_colossus.png"
+              borderColor="purple"
+              tooltip="Place a Shockwave Colossus by dragging onto the map."
+            />
+          </div>
+          {/* this is the mantimayhem 3 units row that appear conditionally */}
+          {mantimayhem3 && (
+          <div className="units-row mm3-row">
+            {/* 3 placeholder units on the left */}
+            <div style={{ width: 64, height: 64 }}></div>
+            <div style={{ width: 64, height: 64 }}></div>
+            <div style={{ width: 64, height: 64 }}></div>
+            <UnitButton
+              mode={4}
+              extra="Mrm"
+              overlay={<ManticoreOverlay order={["melee", "range", "mage"]} />}
+              image="./manticore.png"
+              borderColor="purple"
+              tooltip="MM3: Place a charged Manticore (melee-range-mage) by dragging onto the map. Toggle charged/uncharged by right clicking"
+            />
+            <UnitButton
+              mode={4}
+              extra="Mmr"
+              overlay={<ManticoreOverlay order={["melee", "mage", "range"]} />}
+              image="./manticore.png"
+              borderColor="purple"
+              tooltip="MM3: Place a charged Manticore (melee-mage-range) by dragging onto the map. Toggle charged/uncharged by right clicking"
+            />
+            <UnitButton
+              mode={4}
+              extra="rMm"
+              overlay={<ManticoreOverlay order={["range", "melee", "mage"]} />}
+              image="./manticore.png"
+              borderColor="purple"
+              tooltip="MM3: Place a charged Manticore (range-melee-mage) by dragging onto the map. Toggle charged/uncharged by right clicking"
+            />
+            <UnitButton
+              mode={4}
+              extra="mMr"
+              overlay={<ManticoreOverlay order={["mage", "melee", "range"]} />}
+              image="./manticore.png"
+              borderColor="purple"
+              tooltip="MM3: Place a charged Manticore (mage-melee-range) by dragging onto the map. Toggle charged/uncharged by right clicking"
+            />
+            {/* 2 placeholder units on the right */}
+            <div style={{ width: 64, height: 64 }}></div>
+            <div style={{ width: 64, height: 64 }}></div>
+          </div>)}
+        </div>
       </div>
+      
       <div className="frame">
         Toggle:
         <button
@@ -180,6 +241,17 @@ function App() {
             role="tooltip"
           />
           <span>From wave start</span>
+        </div>
+        <div>
+          <input
+            type="checkbox"
+            checked={mantimayhem3 ? true : false}
+            onChange={(e) => setMantimayhem3(e.target.checked)}
+            aria-label="Mantimayhem 3: Manticores can have random orb attack orders"
+            data-microtip-position="bottom"
+            role="tooltip"
+          />
+          <span>Mantimayhem 3</span>
         </div>
         <div>
           <input
@@ -228,6 +300,7 @@ function App() {
         ref={canvas}
         showVenatorBounce={showVenatorBounce}
         fromWaveStart={fromWaveStart}
+        mantimayhem3={mantimayhem3}
         onCanSaveReplayChanged={setCanSaveReplay}
         onHasReplayChanged={(_hasReplay, replayLength) =>
           setCurrentReplayLength(replayLength ?? null)
@@ -235,6 +308,7 @@ function App() {
         onIsReplayingChanged={setIsReplaying}
         onReplayTickChanged={setReplayTick}
         onFromWaveStartChanged={setFromWaveStart}
+        onMantimayhem3Changed={setMantimayhem3}
         onMouseUp={handleMaybeDrop}
       />
       <p className="footer">
