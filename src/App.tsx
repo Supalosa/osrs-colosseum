@@ -94,7 +94,7 @@ function App() {
           </div>
           {/* this is the row below the clear & place npc buttons row that acts as a placeholder */}
           <div>
-            {/* placeholder goes here */}
+            {/* placeholder goes here, it should only be present when mm3 is enabled*/}
           </div>
         </div>
         {/* this div houses the player & npc buttons *column* */}
