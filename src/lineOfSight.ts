@@ -888,6 +888,9 @@ export function step(draw: boolean = false) {
       }
     }
     
+    // Generate a random style for all unknown manticores starting to charge simultaneously
+    let randomStyleForUnknowns: MobExtra | null = null;
+    
     // Assign styles to manticores starting to charge
     for (const idx of manticoresStartingToCharge) {
       const mob = mobs[idx];
@@ -908,13 +911,19 @@ export function step(draw: boolean = false) {
           mob[6] = "m" as MobExtra;
         } else if (simultaneousUR) {
           mob[6] = "r" as MobExtra;
-        } else if (mantimayhem3) {
-          // With MM3, randomly pick from all 6 possible patterns
-          const mm3Patterns = ["r", "m", "Mrm", "Mmr", "rMm", "mMr"];
-          mob[6] = mm3Patterns[Math.floor(Math.random() * mm3Patterns.length)] as MobExtra;
         } else {
-          // Without MM3, only pick from r or m
-          mob[6] = (Math.random() < 0.5 ? "r" : "m") as MobExtra;
+          // Generate random style once for all unknown manticores starting simultaneously
+          if (!randomStyleForUnknowns) {
+            if (mantimayhem3) {
+              // With MM3, randomly pick from all 6 possible patterns
+              const mm3Patterns = ["r", "m", "Mrm", "Mmr", "rMm", "mMr"];
+              randomStyleForUnknowns = mm3Patterns[Math.floor(Math.random() * mm3Patterns.length)] as MobExtra;
+            } else {
+              // Without MM3, only pick from r or m
+              randomStyleForUnknowns = (Math.random() < 0.5 ? "r" : "m") as MobExtra;
+            }
+          }
+          mob[6] = randomStyleForUnknowns;
         }
       } else if (!originalExtra?.startsWith("u")) {
         // Already known pattern (r, m, Mrm, Mmr, rMm, mMr)
