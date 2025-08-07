@@ -929,6 +929,25 @@ export function step(draw: boolean = false) {
         // Already known pattern (r, m, Mrm, Mmr, rMm, mMr)
         mob[6] = originalExtra as MobExtra;
       }
+      
+      // Update originalExtra when an unknown "u" manticore starts charging
+      if (originalExtra === "u" && mob[6]) {
+        // Convert the determined pattern to the appropriate uncharged form
+        const currentExtra = mob[6];
+        if (currentExtra === "r") {
+          mob[9] = "ur" as MobExtra;
+        } else if (currentExtra === "m") {
+          mob[9] = "um" as MobExtra;
+        } else if (currentExtra === "Mrm") {
+          mob[9] = "uMrm" as MobExtra;
+        } else if (currentExtra === "Mmr") {
+          mob[9] = "uMmr" as MobExtra;
+        } else if (currentExtra === "rMm") {
+          mob[9] = "urMm" as MobExtra;
+        } else if (currentExtra === "mMr") {
+          mob[9] = "umMr" as MobExtra;
+        }
+      }
     }
     
     for (var i = 0; i < mobs.length; i++) {
