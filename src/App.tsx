@@ -8,7 +8,7 @@ function App() {
   const [isDragging, setDragging] = useState(false);
 
   // note: this is a bit janky (it's set here on first mount + in lineOnSight in parse)
-  const [fromWaveStart, setFromWaveStart] = useState(parent.location.hash?.endsWith("ws"));
+  const [fromWaveStart, setFromWaveStart] = useState(parent.location.hash?.includes("ws"));
   const [mantimayhem3, setMantimayhem3] = useState(parent.location.hash?.includes("mm3"));
   const [showVenatorBounce, setShowVenatorBounce] = useState(false);
 
