@@ -150,7 +150,6 @@ function App() {
       </div>
       {mantimayhem3 && (
         <div className="frame">
-          <span style={{ marginRight: '8px' }}>MM3:</span>
           <UnitButton
             mode={4}
             extra="Mrm"
