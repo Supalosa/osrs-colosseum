@@ -286,7 +286,7 @@ export const onCanvasRightClick = function (e: React.MouseEvent) {
             mobs[i][9] = isCurrentlyCharged ? "ur" : "r";
           } else if (originalExtra === "m" || originalExtra === "um") {
             mobs[i][9] = isCurrentlyCharged ? "um" : "m";
-          } else if (originalExtra && (originalExtra.startsWith("u") || !originalExtra.startsWith("u"))) {
+          } else if (originalExtra) {
             // Handle MM3 patterns
             if (isCurrentlyCharged) {
               // Make it uncharged by prepending 'u'
