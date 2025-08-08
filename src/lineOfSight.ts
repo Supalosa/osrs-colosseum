@@ -25,10 +25,6 @@ img_sources.forEach((src, i) => {
   image.src = src;
   image.onload = () => {
     images[i] = image;
-    // Redraw the canvas when an image loads to immediately display units
-    if (ctx) {
-      drawWave();
-    }
   };
 });
 
@@ -109,6 +105,7 @@ var degen = false;
 const b5Tile = [7, 15] as const;
 var cursorLocation: Coordinates | null = null;
 var selected: Coordinates = [...b5Tile];
+var stepStartPosition: Coordinates | null = null;
 var mobs: Mob[] = [];
 var showSpawns = true;
 var showPlayerLoS = true;
@@ -836,6 +833,11 @@ export function place() {
   }
 }
 export function step(draw: boolean = false) {
+  // Capture the player's position when stepping begins
+  if (tickCount === 0 && !replay) {
+    stepStartPosition = [...selected];
+  }
+  
   if (replay && replayTick !== null) {
     if (replay[replayTick]) {
       selected = replay[replayTick];
@@ -1119,6 +1121,8 @@ function stopReplay() {
 export function remove() {
   mobs = [];
   stopReplay();
+  selected = [...b5Tile];
+  stepStartPosition = null;
   const url = new URL(window.location.href);
   url.search = "";
   url.hash = "";
@@ -1172,9 +1176,13 @@ export function reset() {
   if (replay) {
     replayTick = 0;
     selected = replay[0];
+  } else if (stepStartPosition) {
+    // Reset player to position at start of stepping (like replay mode does)
+    selected = [...stepStartPosition];
   }
   draggingNpcIndex = null;
   draggingNpcOffset = null;
+  cursorLocation = null;
   drawWave();
 }
 
@@ -1434,7 +1442,7 @@ export function drawWave() {
       -s * size
     );
     // draw image for anything that's not a player
-    if (images[mode]) {
+    if (images[mode] && mode !== 0 && mode !== MODE_PLAYER) {
       ctx.drawImage(
         images[mode]!,
         cursorLocation[0] * size,
@@ -1509,11 +1517,11 @@ export function drawWave() {
   for (var i = 0; i < mobs.length; i++) {
     const [x, y, t] = mobs[i];
     const s = SIZE[mobs[i][2]];
-    if (!t) {
-      // player
+    // Skip player (type 0) - should never be in mobs array
+    if (!t || t === 0 || t === MODE_PLAYER) {
       continue;
     }
-    if (images[t]) {
+    if (images[t] && t !== 0) {
       ctx.drawImage(
         images[t]!,
         x * size,

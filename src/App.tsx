@@ -86,7 +86,7 @@ function App() {
     <>
       <div className="frame units-frame" onMouseUp={stopDragging}>
         {/* this div houses the clear & place npc buttons *column* */}
-        <div className="controls-column"> 
+        <div className="controls-column">
           {/* this div houses the clear & place npc buttons *row* within the column*/}
           <div className="controls-row">
             <button onClick={() => canvas.current?.remove()}>Clear</button>
