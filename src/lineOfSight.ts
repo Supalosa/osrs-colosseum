@@ -860,7 +860,44 @@ export function step(draw: boolean = false) {
     var line: TapeEntry = [];
     let manticoreFiredThisTick = false;
     
-    // First pass: identify which manticores will start charging this tick
+    // First, handle movement for all mobs and decrement cooldowns
+    for (var i = 0; i < mobs.length; i++) {
+      if (mobs[i][2] < 8) {
+        var mob = mobs[i];
+        mob[5]--;
+        var x = mob[0];
+        var y = mob[1];
+        var t = mob[2];
+        var s = SIZE[t];
+        var r = RANGE[t];
+        
+        //move
+        if (canMove && !(canGainLos && hasLOS(x, y, selected[0], selected[1], s, r, true))) {
+          var dx = x + Math.sign(selected[0] - x);
+          var dy = y + Math.sign(selected[1] - y);
+          //allows corner safespotting
+          if (doesCollide(dx, dy, s, selected[0], selected[1], 1)) {
+            dy = mob[1];
+          }
+          // 1x1 cannot cut corners around pillars for some reason
+          if (
+            legalPosition(dx, dy, s, i) &&
+            (s > 1 ||
+              (legalPosition(dx, y, s, i) && legalPosition(x, dy, s, i)))
+          ) {
+            // move diagonally
+            mob[0] = dx;
+            mob[1] = dy;
+          } else if (legalPosition(dx, y, s, i)) {
+            mob[0] = dx;
+          } else if (legalPosition(x, dy, s, i)) {
+            mob[1] = dy;
+          }
+        }
+      }
+    }
+    
+    // After movement, identify which manticores will start charging this tick
     let manticoresStartingToCharge: number[] = [];
     for (var i = 0; i < mobs.length; i++) {
       if (mobs[i][2] === MANTICORE) {
@@ -989,45 +1026,21 @@ export function step(draw: boolean = false) {
       }
     }
     
+    // Now handle attacks for all mobs
     for (var i = 0; i < mobs.length; i++) {
       if (mobs[i][2] < 8) {
         var mob = mobs[i];
-        mob[5]--;
         var x = mob[0];
         var y = mob[1];
         var t = mob[2];
         var s = SIZE[t];
         var r = RANGE[t];
         var attacked = 0;
-        //move
-        if (canMove && !(canGainLos && hasLOS(x, y, selected[0], selected[1], s, r, true))) {
-          var dx = x + Math.sign(selected[0] - x);
-          var dy = y + Math.sign(selected[1] - y);
-          //allows corner safespotting
-          if (doesCollide(dx, dy, s, selected[0], selected[1], 1)) {
-            dy = mob[1];
-          }
-          // 1x1 cannot cut corners around pillars for some reason
-          if (
-            legalPosition(dx, dy, s, i) &&
-            (s > 1 ||
-              (legalPosition(dx, y, s, i) && legalPosition(x, dy, s, i)))
-          ) {
-            // move diagonally
-            mob[0] = dx;
-            mob[1] = dy;
-          } else if (legalPosition(dx, y, s, i)) {
-            mob[0] = dx;
-          } else if (legalPosition(x, dy, s, i)) {
-            mob[1] = dy;
-          }
-        }
-        x = mob[0];
-        y = mob[1];
+        
         //attack
         if (canAttack && hasLOS(x, y, selected[0], selected[1], s, r, true)) {
           if (mob[2] === MANTICORE) {
-            // Attack if charged and ready (charging logic handled in first pass)
+            // Attack if charged and ready
             const isCharged = mob[7] !== false;
             if (isCharged || mob[7]) {
               if (mob[5] <= 0) {
