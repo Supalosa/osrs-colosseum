@@ -25,6 +25,10 @@ img_sources.forEach((src, i) => {
   image.src = src;
   image.onload = () => {
     images[i] = image;
+    // Redraw the canvas when an image loads to immediately display units
+    if (ctx) {
+      drawWave();
+    }
   };
 });
 
@@ -453,11 +457,22 @@ function loadSpawns() {
       const coordinate = decodeCoordinates(parseInt(split[0]));
       return Array(runLength).fill(coordinate);
     };
-    replay = hash.flatMap((section) => decodeSection(section));
-    replayTick = 0;
-    selected = replay[0];
-    step();
-    replayAuto = setTimeout(() => doAutoTick(), 600);
+    const positions = hash.flatMap((section) => decodeSection(section));
+    
+    // Check if this is a simple spawn URL (single position) or a replay URL (multiple positions or run-length encoded)
+    const isReplay = positions.length > 1 || hash.some(section => section.includes("x"));
+    
+    if (isReplay) {
+      // This is a replay URL - start the replay
+      replay = positions;
+      replayTick = 0;
+      selected = replay[0];
+      step();
+      replayAuto = setTimeout(() => doAutoTick(), 600);
+    } else {
+      // This is a spawn URL with just a player position - set position without starting replay
+      selected = positions[0];
+    }
   }
 }
 
@@ -498,10 +513,31 @@ const getMobSpec = (mob: Mob): MobSpec => {
 export function copySpawnURL() {
   const mobSpecs = mobs.filter((mob) => mob[2] > MODE_PLAYER).map(getMobSpec);
   var url = getSpawnUrl(mobSpecs);
-  // Add mm3 flag if enabled
-  if (mantimayhem3) {
-    url = url.concat("#_mm3");
+  
+  // Check if player has been moved from starting position
+  const playerMoved = selected[0] !== b5Tile[0] || selected[1] !== b5Tile[1];
+  
+  // Build hash fragments
+  const hashParts = [];
+  
+  // Add player position if moved
+  if (playerMoved) {
+    hashParts.push(encodeCoordinate(selected));
   }
+  
+  // Add flags if enabled  
+  if (fromWaveStart) {
+    hashParts.push("_ws");
+  }
+  if (mantimayhem3) {
+    hashParts.push("_mm3");
+  }
+  
+  // Add hash if there are any parts
+  if (hashParts.length > 0) {
+    url = url.concat("#" + hashParts.join(""));
+  }
+  
   copyQ(url);
   alert("Spawn URL Copied!");
 }
