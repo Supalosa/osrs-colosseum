@@ -25,6 +25,7 @@ img_sources.forEach((src, i) => {
   image.src = src;
   image.onload = () => {
     images[i] = image;
+    drawWave();
   };
 });
 
