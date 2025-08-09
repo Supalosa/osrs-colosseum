@@ -1007,7 +1007,8 @@ export function step(draw: boolean = false) {
       }
       
       // Update originalExtra when an unknown "u" manticore starts charging
-      if (originalExtra === "u" && mob[6]) {
+      // Only update if it's not inheriting from an established style
+      if (originalExtra === "u" && mob[6] && !establishedStyle) {
         // Convert the determined pattern to the appropriate uncharged form
         const currentExtra = mob[6];
         if (currentExtra === "r") {
