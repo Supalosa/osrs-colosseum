@@ -946,6 +946,9 @@ export function step(draw: boolean = false) {
     let simultaneousUM = false;
     let simultaneousUR = false;
     let simultaneousKnownMM3: string | null = null;
+    // Special case: exactly two uncharged-but-known manticores (e.g., 'ur' and 'um') starting together
+    // should sync to one of their two styles chosen at random.
+    let groupSelectedStyle: MobExtra | null = null;
     if (!establishedStyle && manticoresStartingToCharge.length > 0) {
       // Check what types are starting simultaneously
       for (const idx of manticoresStartingToCharge) {
@@ -953,17 +956,30 @@ export function step(draw: boolean = false) {
         if (originalExtra === "um") simultaneousUM = true;
         if (originalExtra === "ur") simultaneousUR = true;
         // Check for MM3 patterns that are known (not starting with 'u')
-        if (mantimayhem3 && originalExtra && !originalExtra.startsWith("u") && 
+        if (mantimayhem3 && originalExtra && !originalExtra.startsWith("u") &&
             (originalExtra === "Mrm" || originalExtra === "Mmr" || originalExtra === "rMm" || originalExtra === "mMr")) {
           simultaneousKnownMM3 = originalExtra;
         }
         // Check for uncharged but known MM3 patterns
         if (mantimayhem3 && originalExtra && originalExtra.startsWith("u") && originalExtra.length > 1) {
-          simultaneousKnownMM3 = originalExtra.substring(1); // Remove 'u' prefix
+          simultaneousKnownMM3 = originalExtra.substring(1) as MobExtra; // Remove 'u' prefix
+        }
+      }
+
+      // If exactly two manticores are starting, and both are uncharged-but-known with differing styles,
+      // randomly choose one of the two to determine the style for both.
+      if (manticoresStartingToCharge.length === 2) {
+        const [aIdx, bIdx] = manticoresStartingToCharge;
+        const aOrig = mobs[aIdx][9];
+        const bOrig = mobs[bIdx][9];
+        const aCandidate = aOrig && aOrig.startsWith("u") && aOrig.length > 1 ? (aOrig.substring(1) as MobExtra) : null;
+        const bCandidate = bOrig && bOrig.startsWith("u") && bOrig.length > 1 ? (bOrig.substring(1) as MobExtra) : null;
+        if (aCandidate && bCandidate && aCandidate !== bCandidate) {
+          groupSelectedStyle = Math.random() < 0.5 ? aCandidate : bCandidate;
         }
       }
     }
-    
+
     // Generate a random style for all unknown manticores starting to charge simultaneously
     let randomStyleForUnknowns: MobExtra | null = null;
     
@@ -975,6 +991,9 @@ export function step(draw: boolean = false) {
       
       if (establishedStyle) {
         mob[6] = establishedStyle as MobExtra;
+      } else if (groupSelectedStyle) {
+        // Group-selected sync for exactly-two differing uncharged-known manticores
+        mob[6] = groupSelectedStyle;
       } else if (originalExtra && originalExtra.startsWith("u") && originalExtra.length > 1) {
         // Uncharged but known pattern (ur, um, uMrm, uMmr, urMm, umMr)
         mob[6] = originalExtra.substring(1) as MobExtra;
