@@ -6,9 +6,8 @@ export type MobType = number;
 export type MobSpawnX = number;
 export type MobSpawnY = number;
 export type MobCooldown = number;
+// null is only used for non-manticores; manticores always have a string value
 export type MobExtra = "r" | "m" | "u" | "ur" | "um" | "Mrm" | "Mmr" | "rMm" | "mMr" | "uMrm" | "uMmr" | "urMm" | "umMr" | null;
-export type MobCharged = boolean;
-export type MobChargingTicks = number;
 export type MobOriginalExtra = MobExtra; // Stores the original extra value for manticores
 export type Mob = [
   MobX,
@@ -18,8 +17,6 @@ export type Mob = [
   MobSpawnY,
   MobCooldown,
   MobExtra,
-  MobCharged?,
-  MobChargingTicks?,
   MobOriginalExtra?
 ];
 export type MobSpec = [MobSpawnX, MobSpawnY, MobType, MobExtra];

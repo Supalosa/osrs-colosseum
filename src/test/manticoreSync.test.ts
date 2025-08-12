@@ -31,8 +31,8 @@ describe("Manticore synchronization tests", () => {
     const secondManticore = mobs[1];
     
     // Both should be charging
-    expect(firstManticore[8]).toBeGreaterThan(0);
-    expect(secondManticore[8]).toBeGreaterThan(0);
+    expect(firstManticore[5]).toBeGreaterThan(0);
+    expect(secondManticore[5]).toBeGreaterThan(0);
     
     // Both should have the SAME style (either both 'r' or both 'm')
     expect(firstManticore[6]).toBe(secondManticore[6]);
@@ -70,9 +70,9 @@ describe("Manticore synchronization tests", () => {
     const thirdManticore = mobs[2];
     
     // All should be charging
-    expect(firstManticore[8]).toBeGreaterThan(0);
-    expect(secondManticore[8]).toBeGreaterThan(0);
-    expect(thirdManticore[8]).toBeGreaterThan(0);
+    expect(firstManticore[5]).toBeGreaterThan(0);
+    expect(secondManticore[5]).toBeGreaterThan(0);
+    expect(thirdManticore[5]).toBeGreaterThan(0);
     
     // All should have the SAME style
     expect(firstManticore[6]).toBe(secondManticore[6]);

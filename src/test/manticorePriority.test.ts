@@ -31,8 +31,8 @@ describe("Manticore orb order priority", () => {
     const umManticore = mobs[1];
     
     // Both should be charging
-    expect(unknownManticore[8]).toBeGreaterThan(0);
-    expect(umManticore[8]).toBeGreaterThan(0);
+    expect(unknownManticore[5]).toBeGreaterThan(0);
+    expect(umManticore[5]).toBeGreaterThan(0);
     
     // Both should have mage style since 'um' has priority
     expect(unknownManticore[6]).toBe("m");
@@ -64,8 +64,8 @@ describe("Manticore orb order priority", () => {
     const urManticore = mobs[1];
     
     // Both should be charging
-    expect(unknownManticore[8]).toBeGreaterThan(0);
-    expect(urManticore[8]).toBeGreaterThan(0);
+    expect(unknownManticore[5]).toBeGreaterThan(0);
+    expect(urManticore[5]).toBeGreaterThan(0);
     
     // Both should have range style since 'ur' has priority
     expect(unknownManticore[6]).toBe("r");
@@ -97,14 +97,14 @@ describe("Manticore orb order priority", () => {
     const umManticore = mobs[1];
     
     // UM should inherit range style from charged manticore
-    expect(umManticore[8]).toBeGreaterThan(0);
+    expect(umManticore[5]).toBeGreaterThan(0);
     expect(umManticore[6]).toBe("r");
     
     // Charged manticore keeps its style
     expect(chargedManticore[6]).toBe("r");
     
     // UM should keep its original type
-    expect(umManticore[9]).toBe("um");
+    expect(umManticore[7]).toBe("um");
   });
 
   it("u manticore should defer to um when both see player simultaneously", () => {
@@ -132,8 +132,8 @@ describe("Manticore orb order priority", () => {
     const umManticore = mobs[1];
     
     // Both should be charging
-    expect(uManticore[8]).toBeGreaterThan(0);
-    expect(umManticore[8]).toBeGreaterThan(0);
+    expect(uManticore[5]).toBeGreaterThan(0);
+    expect(umManticore[5]).toBeGreaterThan(0);
     
     // Both should have mage style since 'um' determines it
     expect(uManticore[6]).toBe("m");
@@ -165,8 +165,8 @@ describe("Manticore orb order priority", () => {
     const urManticore = mobs[1];
     
     // Both should be charging
-    expect(uManticore[8]).toBeGreaterThan(0);
-    expect(urManticore[8]).toBeGreaterThan(0);
+    expect(uManticore[5]).toBeGreaterThan(0);
+    expect(urManticore[5]).toBeGreaterThan(0);
     
     // Both should have range style since 'ur' determines it
     expect(uManticore[6]).toBe("r");
@@ -204,9 +204,9 @@ describe("Manticore orb order priority", () => {
     const unknownManticore = mobs[2];
     
     // All should be charging
-    expect(urManticore[8]).toBeGreaterThan(0);
-    expect(umManticore[8]).toBeGreaterThan(0);
-    expect(unknownManticore[8]).toBeGreaterThan(0);
+    expect(urManticore[5]).toBeGreaterThan(0);
+    expect(umManticore[5]).toBeGreaterThan(0);
+    expect(unknownManticore[5]).toBeGreaterThan(0);
     
     // Since both 'um' and 'ur' have same priority (3), first one found should determine
     // But 'um' should set mage, 'ur' should set range for themselves
@@ -239,12 +239,12 @@ describe("Manticore orb order priority", () => {
     const umManticore = mobs[1];
     
     // U manticore should be charging with a random style
-    expect(uManticore[8]).toBeGreaterThan(0);
+    expect(uManticore[5]).toBeGreaterThan(0);
     const uStyle = uManticore[6];
     expect(["r", "m"]).toContain(uStyle);
     
-    // UM manticore should not be charging yet (uncharged manticores start with 0)
-    expect(umManticore[8]).toBe(0);
+    // UM manticore should not be charging yet (cooldown decremented in step)
+    expect(umManticore[5]).toBeLessThanOrEqual(0);
     
     // Move the um manticore so it can see the player
     umManticore[0] = 9;
@@ -254,11 +254,11 @@ describe("Manticore orb order priority", () => {
     step();
     
     // UM should now be charging with the same style as U
-    expect(umManticore[8]).toBeGreaterThan(0);
+    expect(umManticore[5]).toBeGreaterThan(0);
     expect(umManticore[6]).toBe(uStyle);
     
     // UM should keep its original type
-    expect(umManticore[9]).toBe("um");
+    expect(umManticore[7]).toBe("um");
   });
 
   it("should respect already charging 'u' manticore when 'ur' sees player later", () => {
@@ -284,12 +284,12 @@ describe("Manticore orb order priority", () => {
     const urManticore = mobs[1];
     
     // U manticore should be charging with a random style
-    expect(uManticore[8]).toBeGreaterThan(0);
+    expect(uManticore[5]).toBeGreaterThan(0);
     const uStyle = uManticore[6];
     expect(["r", "m"]).toContain(uStyle);
     
-    // UR manticore should not be charging yet (uncharged manticores start with 0)
-    expect(urManticore[8]).toBe(0);
+    // UR manticore should not be charging yet (cooldown decremented in step)
+    expect(urManticore[5]).toBeLessThanOrEqual(0);
     
     // Move the ur manticore so it can see the player
     urManticore[0] = 9;
@@ -299,11 +299,11 @@ describe("Manticore orb order priority", () => {
     step();
     
     // UR should now be charging with the same style as U
-    expect(urManticore[8]).toBeGreaterThan(0);
+    expect(urManticore[5]).toBeGreaterThan(0);
     expect(urManticore[6]).toBe(uStyle);
     
     // UR should keep its original type
-    expect(urManticore[9]).toBe("ur");
+    expect(urManticore[7]).toBe("ur");
   });
 
   it("should inherit from already charged 'r' manticore when 'u' sees player later", () => {
@@ -334,11 +334,11 @@ describe("Manticore orb order priority", () => {
     step();
     
     // U should now be charging with range style inherited from R
-    expect(uManticore[8]).toBeGreaterThan(0);
+    expect(uManticore[5]).toBeGreaterThan(0);
     expect(uManticore[6]).toBe("r");
     
     // U should keep its original type
-    expect(uManticore[9]).toBe("u");
+    expect(uManticore[7]).toBe("u");
   });
 
   it("should inherit from already charged 'm' manticore when 'um' sees player later", () => {
@@ -369,11 +369,11 @@ describe("Manticore orb order priority", () => {
     step();
     
     // UM should now be charging with mage style inherited from M
-    expect(umManticore[8]).toBeGreaterThan(0);
+    expect(umManticore[5]).toBeGreaterThan(0);
     expect(umManticore[6]).toBe("m");
     
     // UM should keep its original type
-    expect(umManticore[9]).toBe("um");
+    expect(umManticore[7]).toBe("um");
   });
 
   it("should inherit range from charged 'r' manticore when 'ur' sees player later", () => {
@@ -404,11 +404,11 @@ describe("Manticore orb order priority", () => {
     step();
     
     // UR should now be charging with range style inherited from R
-    expect(urManticore[8]).toBeGreaterThan(0);
+    expect(urManticore[5]).toBeGreaterThan(0);
     expect(urManticore[6]).toBe("r");
     
     // UR should keep its original type
-    expect(urManticore[9]).toBe("ur");
+    expect(urManticore[7]).toBe("ur");
   });
 
   it("'um' should inherit mage from charged 'm' even when seeing player simultaneously", () => {
@@ -436,7 +436,7 @@ describe("Manticore orb order priority", () => {
     const umManticore = mobs[1];
     
     // UM should be charging with mage style (inheriting from m)
-    expect(umManticore[8]).toBeGreaterThan(0);
+    expect(umManticore[5]).toBeGreaterThan(0);
     expect(umManticore[6]).toBe("m");
     
     // Charged manticore keeps its style
