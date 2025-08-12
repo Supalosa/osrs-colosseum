@@ -783,12 +783,7 @@ export function place() {
     drawWave();
   }
 }
-export function step(draw: boolean = false) {
-  // Capture the player's position when stepping begins
-  if (tickCount === 0 && !replay) {
-    stepStartPosition = [...selected];
-  }
-  
+function handleReplay() {
   if (replay && replayTick !== null) {
     if (replay[replayTick]) {
       selected = replay[replayTick];
@@ -801,237 +796,236 @@ export function step(draw: boolean = false) {
       replayAuto = setTimeout(() => doAutoTick(), 600);
     }
   }
+}
+
+function moveMobs(canMove: boolean, canGainLos: boolean) {
+  for (var i = 0; i < mobs.length; i++) {
+    if (mobs[i][2] < 8) {
+      var mob = mobs[i];
+      mob[5]--; // Decrement cooldown
+      var x = mob[0];
+      var y = mob[1];
+      var t = mob[2];
+      var s = SIZE[t];
+      var r = RANGE[t];
+      
+      if (canMove && !(canGainLos && hasLOS(x, y, selected[0], selected[1], s, r, true))) {
+        var dx = x + Math.sign(selected[0] - x);
+        var dy = y + Math.sign(selected[1] - y);
+        //allows corner safespotting
+        if (doesCollide(dx, dy, s, selected[0], selected[1], 1)) {
+          dy = mob[1];
+        }
+        // 1x1 cannot cut corners around pillars for some reason
+        if (
+          legalPosition(dx, dy, s, i) &&
+          (s > 1 ||
+            (legalPosition(dx, y, s, i) && legalPosition(x, dy, s, i)))
+        ) {
+          // move diagonally
+          mob[0] = dx;
+          mob[1] = dy;
+        } else if (legalPosition(dx, y, s, i)) {
+          mob[0] = dx;
+        } else if (legalPosition(x, dy, s, i)) {
+          mob[1] = dy;
+        }
+      }
+    }
+  }
+}
+
+function getManticoresStartingToCharge(canAttack: boolean): number[] {
+  let manticoresStartingToCharge: number[] = [];
+  for (var i = 0; i < mobs.length; i++) {
+    if (mobs[i][2] === MANTICORE) {
+      const mob = mobs[i];
+      const currentExtra = mob[6];
+      const x = mob[0];
+      const y = mob[1];
+      
+      const isUncharged = currentExtra?.startsWith('u') ?? false;
+      
+      if (isUncharged && canAttack && hasLOS(x, y, selected[0], selected[1], SIZE[MANTICORE], RANGE[MANTICORE], true)) {
+        manticoresStartingToCharge.push(i);
+      }
+    }
+  }
+  return manticoresStartingToCharge;
+}
+
+function getEstablishedManticoreStyle(excludeIndices: number[]): string | null {
+  for (var i = 0; i < mobs.length; i++) {
+    if (mobs[i][2] === MANTICORE && !excludeIndices.includes(i)) {
+      const mob = mobs[i];
+      const currentExtra = mob[6];
+      const originalExtra = mob[7];
+      
+      const isChargedOrCharging = currentExtra && !currentExtra.startsWith('u');
+      
+      if (isChargedOrCharging) {
+        if (originalExtra && originalExtra.includes('u')) {
+          return currentExtra;
+        } else if (!originalExtra?.includes('u')) {
+          return currentExtra;
+        }
+      }
+    }
+  }
+  return null;
+}
+
+function determineManticoreStyles(manticoresStartingToCharge: number[], establishedStyle: string | null) {
+  let knownStyles: string[] = [];
+  if (!establishedStyle && manticoresStartingToCharge.length > 0) {
+    for (const idx of manticoresStartingToCharge) {
+      const originalExtra = mobs[idx][7];
+      if (originalExtra && originalExtra !== "u") {
+        const baseStyle = originalExtra.startsWith("u") ? originalExtra.substring(1) : originalExtra;
+        if (!knownStyles.includes(baseStyle)) {
+          knownStyles.push(baseStyle);
+        }
+      }
+    }
+  }
+  
+  let groupSelectedStyle: MobExtra | null = null;
+  if (knownStyles.length > 1) {
+    groupSelectedStyle = knownStyles[Math.floor(Math.random() * knownStyles.length)] as MobExtra;
+  }
+
+  let randomStyleForUnknowns: MobExtra | null = null;
+  
+  for (const idx of manticoresStartingToCharge) {
+    const mob = mobs[idx];
+    const originalExtra = mob[7];
+    const currentExtra = mob[6];
+    
+    let chargedStyle: MobExtra = null;
+    
+    if (establishedStyle) {
+      chargedStyle = establishedStyle as MobExtra;
+    } else if (groupSelectedStyle) {
+      chargedStyle = groupSelectedStyle;
+    } else if (currentExtra && currentExtra.startsWith("u") && currentExtra.length > 1) {
+      chargedStyle = currentExtra.substring(1) as MobExtra;
+    } else if (currentExtra === "u") {
+      if (knownStyles.length === 1) {
+        chargedStyle = knownStyles[0] as MobExtra;
+      } else if (knownStyles.length > 1) {
+        chargedStyle = groupSelectedStyle;
+      } else {
+        if (!randomStyleForUnknowns) {
+          if (mantimayhem3) {
+            const mm3Patterns = ["r", "m", "Mrm", "Mmr", "rMm", "mMr"];
+            randomStyleForUnknowns = mm3Patterns[Math.floor(Math.random() * mm3Patterns.length)] as MobExtra;
+          } else {
+            randomStyleForUnknowns = (Math.random() < 0.5 ? "r" : "m") as MobExtra;
+          }
+        }
+        chargedStyle = randomStyleForUnknowns;
+      }
+    }
+    
+    if (chargedStyle) {
+      mob[6] = chargedStyle;
+      mob[5] = MANTICORE_CHARGE_TIME;
+    }
+    
+    if (originalExtra === "u" && chargedStyle && 
+        !establishedStyle && knownStyles.length === 0) {
+      mob[7] = ("u" + chargedStyle) as MobExtra;
+    }
+  }
+}
+
+function processAttacks(canAttack: boolean): { line: TapeEntry, manticoreFired: boolean } {
+  let line: TapeEntry = [];
+  let manticoreFiredThisTick = false;
+  
+  for (var i = 0; i < mobs.length; i++) {
+    if (mobs[i][2] < 8) {
+      var mob = mobs[i];
+      var x = mob[0];
+      var y = mob[1];
+      var t = mob[2];
+      var s = SIZE[t];
+      var r = RANGE[t];
+      var attacked = 0;
+      
+      if (canAttack && hasLOS(x, y, selected[0], selected[1], s, r, true)) {
+        if (mob[2] === MANTICORE) {
+          const currentExtra = mob[6];
+          const isCharged = currentExtra && !currentExtra.startsWith('u');
+          
+          if (isCharged && mob[5] <= 0 && !manticoreFiredThisTick) {
+            manticoreTicksRemaining[i] = 3;
+            attacked = 1;
+            mob[5] = CD[t];
+            manticoreFiredThisTick = true;
+          }
+        } else {
+          if (mob[5] <= 0) {
+            attacked = 1;
+            mob[5] = CD[t];
+          }
+        }
+      }
+      const value = attacked | ((x & 0xff) << 16) | ((y & 0xff) << 24);
+      line.push(value);
+    }
+  }
+  
+  return { line, manticoreFired: manticoreFiredThisTick };
+}
+
+function updateManticoreAttackStyles(line: TapeEntry) {
+  Object.entries(manticoreTicksRemaining).forEach(([idx, ticks]) => {
+    const index = Number(idx);
+    if (ticks > 0 && mobs[index]) {
+      let manticoreMode = mobs[index][6];
+      if (!manticoreMode || manticoreMode === "u") {
+        manticoreMode = DEFAULT_MANTICORE_MODE;
+      }
+      const manticoreStyles = MANTICORE_PATTERNS[manticoreMode];
+      const currentStyle = manticoreStyles[3 - ticks];
+      const prevLine = line[index];
+      line[index] = 1 | (currentStyle << 8) | (prevLine & 0xffff0000);
+      manticoreTicksRemaining[index] = ticks - 1;
+    } else {
+      delete manticoreTicksRemaining[index];
+    }
+  });
+}
+
+export function step(draw: boolean = false) {
+  // Capture the player's position when stepping begins
+  if (tickCount === 0 && !replay) {
+    stepStartPosition = [...selected];
+  }
+  
+  handleReplay();
+  
   if (mode == 0 && mobs.length > 0) {
-    const canAttack = fromWaveStart
-      ? tickCount >= DELAY_FIRST_ATTACK_TICKS
-      : true;
+    const canAttack = fromWaveStart ? tickCount >= DELAY_FIRST_ATTACK_TICKS : true;
     const canMove = fromWaveStart ? tickCount > 0 : true;
     const canGainLos = fromWaveStart ? tickCount > 1 : true;
-    var line: TapeEntry = [];
-    let manticoreFiredThisTick = false;
     
-    // First, handle movement for all mobs and decrement cooldowns
-    for (var i = 0; i < mobs.length; i++) {
-      if (mobs[i][2] < 8) {
-        var mob = mobs[i];
-        mob[5]--;
-        var x = mob[0];
-        var y = mob[1];
-        var t = mob[2];
-        var s = SIZE[t];
-        var r = RANGE[t];
-        
-        //move
-        if (canMove && !(canGainLos && hasLOS(x, y, selected[0], selected[1], s, r, true))) {
-          var dx = x + Math.sign(selected[0] - x);
-          var dy = y + Math.sign(selected[1] - y);
-          //allows corner safespotting
-          if (doesCollide(dx, dy, s, selected[0], selected[1], 1)) {
-            dy = mob[1];
-          }
-          // 1x1 cannot cut corners around pillars for some reason
-          if (
-            legalPosition(dx, dy, s, i) &&
-            (s > 1 ||
-              (legalPosition(dx, y, s, i) && legalPosition(x, dy, s, i)))
-          ) {
-            // move diagonally
-            mob[0] = dx;
-            mob[1] = dy;
-          } else if (legalPosition(dx, y, s, i)) {
-            mob[0] = dx;
-          } else if (legalPosition(x, dy, s, i)) {
-            mob[1] = dy;
-          }
-        }
-      }
-    }
+    // Phase 1: Move all mobs
+    moveMobs(canMove, canGainLos);
     
-    // After movement, identify which manticores will start charging this tick
-    let manticoresStartingToCharge: number[] = [];
-    for (var i = 0; i < mobs.length; i++) {
-      if (mobs[i][2] === MANTICORE) {
-        const mob = mobs[i];
-        const currentExtra = mob[6];
-        const x = mob[0];
-        const y = mob[1];
-        
-        // Check if uncharged (starts with 'u')  
-        // For manticores, currentExtra is always a string, but TypeScript doesn't know that
-        const isUncharged = currentExtra?.startsWith('u') ?? false;
-        
-        if (isUncharged && canAttack && hasLOS(x, y, selected[0], selected[1], SIZE[MANTICORE], RANGE[MANTICORE], true)) {
-          manticoresStartingToCharge.push(i);
-        }
-      }
-    }
+    // Phase 2: Handle manticore charging
+    const manticoresStartingToCharge = getManticoresStartingToCharge(canAttack);
+    const establishedStyle = getEstablishedManticoreStyle(manticoresStartingToCharge);
+    determineManticoreStyles(manticoresStartingToCharge, establishedStyle);
     
-    // Determine if there's an established style from already charging/charged manticores
-    let establishedStyle: string | null = null;
-    for (var i = 0; i < mobs.length; i++) {
-      if (mobs[i][2] === MANTICORE && !manticoresStartingToCharge.includes(i)) {
-        const mob = mobs[i];
-        const currentExtra = mob[6];
-        const originalExtra = mob[7];
-        
-        // Check if this manticore is charged or charging (has cooldown > 0)
-        const isChargedOrCharging = currentExtra && !currentExtra.startsWith('u');
-        
-        // If it's charged/charging and originally had 'u' in it, it can establish style
-        if (isChargedOrCharging) {
-          if (originalExtra && originalExtra.includes('u')) {
-            // This manticore started uncharged but is now charging/charged
-            establishedStyle = currentExtra;
-            break;
-          } else if (!originalExtra?.includes('u')) {
-            // Already charged manticores without 'u' also establish style
-            establishedStyle = currentExtra;
-            break;
-          }
-        }
-      }
-    }
+    // Phase 3: Process attacks
+    const { line, manticoreFired } = processAttacks(canAttack);
     
-    // Collect all known styles from simultaneously charging manticores
-    let knownStyles: string[] = [];
-    if (!establishedStyle && manticoresStartingToCharge.length > 0) {
-      for (const idx of manticoresStartingToCharge) {
-        const originalExtra = mobs[idx][7];
-        if (originalExtra && originalExtra !== "u") {
-          // Extract the base style (remove 'u' prefix if present)
-          const baseStyle = originalExtra.startsWith("u") ? originalExtra.substring(1) : originalExtra;
-          if (!knownStyles.includes(baseStyle)) {
-            knownStyles.push(baseStyle);
-          }
-        }
-      }
-    }
+    // Phase 4: Update manticore attack styles
+    updateManticoreAttackStyles(line);
     
-    // If there are multiple different known styles, pick one randomly for all to use
-    let groupSelectedStyle: MobExtra | null = null;
-    if (knownStyles.length > 1) {
-      groupSelectedStyle = knownStyles[Math.floor(Math.random() * knownStyles.length)] as MobExtra;
-    }
-
-    // Generate a random style for all unknown manticores starting to charge simultaneously
-    let randomStyleForUnknowns: MobExtra | null = null;
-    
-    // Assign styles to manticores starting to charge
-    for (const idx of manticoresStartingToCharge) {
-      const mob = mobs[idx];
-      const originalExtra = mob[7];
-      const currentExtra = mob[6];
-      
-      // Determine the style to charge with
-      let chargedStyle: MobExtra = null;
-      
-      if (establishedStyle) {
-        chargedStyle = establishedStyle as MobExtra;
-      } else if (groupSelectedStyle) {
-        // Group-selected sync for exactly-two differing uncharged-known manticores
-        chargedStyle = groupSelectedStyle;
-      } else if (currentExtra && currentExtra.startsWith("u") && currentExtra.length > 1) {
-        // Uncharged but known pattern (ur, um, uMrm, uMmr, urMm, umMr)
-        chargedStyle = currentExtra.substring(1) as MobExtra;
-      } else if (currentExtra === "u") {
-        // Completely unknown pattern
-        if (knownStyles.length === 1) {
-          // Inherit from the single known style
-          chargedStyle = knownStyles[0] as MobExtra;
-        } else if (knownStyles.length > 1) {
-          // Multiple known styles - use the group-selected one
-          chargedStyle = groupSelectedStyle;
-        } else {
-          // No known styles - generate random style once for all unknown manticores
-          if (!randomStyleForUnknowns) {
-            if (mantimayhem3) {
-              // With MM3, randomly pick from all 6 possible patterns
-              const mm3Patterns = ["r", "m", "Mrm", "Mmr", "rMm", "mMr"];
-              randomStyleForUnknowns = mm3Patterns[Math.floor(Math.random() * mm3Patterns.length)] as MobExtra;
-            } else {
-              // Without MM3, only pick from r or m
-              randomStyleForUnknowns = (Math.random() < 0.5 ? "r" : "m") as MobExtra;
-            }
-          }
-          chargedStyle = randomStyleForUnknowns;
-        }
-      }
-      
-      // Set the charged style and attack delay
-      if (chargedStyle) {
-        mob[6] = chargedStyle;
-        mob[5] = MANTICORE_CHARGE_TIME; // 10 tick charge delay
-      }
-      
-      // Update originalExtra when an unknown "u" manticore chooses its style randomly
-      // Only update if it's choosing randomly (not inheriting from any other manticore)
-      if (originalExtra === "u" && chargedStyle && 
-          !establishedStyle && knownStyles.length === 0) {
-        // Convert the determined pattern to the appropriate uncharged form by prepending "u"
-        mob[7] = ("u" + chargedStyle) as MobExtra;
-      }
-    }
-    
-    // Now handle attacks for all mobs
-    for (var i = 0; i < mobs.length; i++) {
-      if (mobs[i][2] < 8) {
-        var mob = mobs[i];
-        var x = mob[0];
-        var y = mob[1];
-        var t = mob[2];
-        var s = SIZE[t];
-        var r = RANGE[t];
-        var attacked = 0;
-        
-        //attack
-        if (canAttack && hasLOS(x, y, selected[0], selected[1], s, r, true)) {
-          if (mob[2] === MANTICORE) {
-            // Check if manticore is charged (not starting with 'u')
-            const currentExtra = mob[6];
-            const isCharged = currentExtra && !currentExtra.startsWith('u');
-            
-            if (isCharged) {
-              if (mob[5] <= 0) {
-                if (!manticoreFiredThisTick) {
-                  manticoreTicksRemaining[i] = 3;
-                  attacked = 1;
-                  mob[5] = CD[t];
-                  // Delay any other mantis if they are ready to attack
-                  manticoreFiredThisTick = true;
-                }
-              }
-            }
-          } else {
-            // Non-manticore attacks
-            if (mob[5] <= 0) {
-              attacked = 1;
-              mob[5] = CD[t];
-            }
-          }
-        }
-        // pack the positions into 3rd and 4th byte (2nd byte is manticore attack style)
-        const value = attacked | ((x & 0xff) << 16) | ((y & 0xff) << 24);
-        line.push(value);
-      }
-    }
-    Object.entries(manticoreTicksRemaining).forEach(([idx, ticks]) => {
-      const index = Number(idx);
-      if (ticks > 0 && mobs[index]) {
-        let manticoreMode = mobs[index][6];
-        // Handle unknown/uncharged manticores
-        if (!manticoreMode || manticoreMode === "u") {
-          manticoreMode = DEFAULT_MANTICORE_MODE;
-        }
-        const manticoreStyles = MANTICORE_PATTERNS[manticoreMode];
-        const currentStyle = manticoreStyles[3 - ticks];
-        const prevLine = line[index];
-        line[index] = 1 | (currentStyle << 8) | (prevLine & 0xffff0000);
-        manticoreTicksRemaining[index] = ticks - 1;
-      } else {
-        delete manticoreTicksRemaining[index];
-      }
-    });
-    if (manticoreFiredThisTick) {
+    if (manticoreFired) {
       delayAllReadyMantis(MANTICORE_DELAY);
     }
     
@@ -1043,6 +1037,7 @@ export function step(draw: boolean = false) {
     drawWave();
   }
 }
+
 function delayAllReadyMantis(ticks: number) {
   mobs
     .filter((mob) => {
@@ -1055,6 +1050,7 @@ function delayAllReadyMantis(ticks: number) {
       mob[5] = ticks;
     });
 }
+
 function stopReplay() {
   replay = null;
   replayTick = null;
