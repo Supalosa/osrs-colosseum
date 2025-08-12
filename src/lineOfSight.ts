@@ -34,37 +34,29 @@ const colors = ["red", "cyan", "lime", "orange", "purple", "brown", "blue"];
 const MODE_PLAYER = 0;
 
 export const MANTICORE = 4;
-const MANTICORE_RANGE_FIRST = "r";
-const MANTICORE_MAGE_FIRST = "m";
-const MANTICORE_UNCHARGED_RANGE = "ur";
-const MANTICORE_UNCHARGED_MAGE = "um";
-// MM3 orb orders
-const MANTICORE_MM3_MRM = "Mrm"; // melee-range-mage
-const MANTICORE_MM3_MMR = "Mmr"; // melee-mage-range
-const MANTICORE_MM3_RMM = "rMm"; // range-melee-mage
-const MANTICORE_MM3_MMR2 = "mMr"; // mage-melee-range
-const MANTICORE_UNCHARGED_MM3_MRM = "uMrm";
-const MANTICORE_UNCHARGED_MM3_MMR = "uMmr";
-const MANTICORE_UNCHARGED_MM3_RMM = "urMm";
-const MANTICORE_UNCHARGED_MM3_MMR2 = "umMr";
-
 const MANTICORE_ATTACKS = ["lime", "blue", "red"];
-const DEFAULT_MANTICORE_MODE = MANTICORE_RANGE_FIRST;
+const DEFAULT_MANTICORE_MODE = "r";
+
+// Base patterns for manticore attacks
 // values are indexes into MANTICORE_ATTACKS (0=range/lime, 1=mage/blue, 2=melee/red)
+const BASE_MANTICORE_PATTERNS: { [patternName: string]: number[] } = {
+  // Standard patterns
+  "r": [0, 1, 2],  // range-mage-melee
+  "m": [1, 0, 2],  // mage-range-melee
+  // MM3 patterns  
+  "Mrm": [2, 0, 1], // melee-range-mage
+  "Mmr": [2, 1, 0], // melee-mage-range
+  "rMm": [0, 2, 1], // range-melee-mage
+  "mMr": [1, 2, 0], // mage-melee-range
+};
+
+// Build full pattern map including uncharged versions
 const MANTICORE_PATTERNS: { [patternName: string]: number[] } = {
-  [MANTICORE_RANGE_FIRST]: [0, 1, 2],
-  [MANTICORE_MAGE_FIRST]: [1, 0, 2],
-  [MANTICORE_UNCHARGED_RANGE]: [0, 1, 2],
-  [MANTICORE_UNCHARGED_MAGE]: [1, 0, 2],
-  // MM3 patterns
-  [MANTICORE_MM3_MRM]: [2, 0, 1], // melee-range-mage
-  [MANTICORE_MM3_MMR]: [2, 1, 0], // melee-mage-range
-  [MANTICORE_MM3_RMM]: [0, 2, 1], // range-melee-mage
-  [MANTICORE_MM3_MMR2]: [1, 2, 0], // mage-melee-range
-  [MANTICORE_UNCHARGED_MM3_MRM]: [2, 0, 1],
-  [MANTICORE_UNCHARGED_MM3_MMR]: [2, 1, 0],
-  [MANTICORE_UNCHARGED_MM3_RMM]: [0, 2, 1],
-  [MANTICORE_UNCHARGED_MM3_MMR2]: [1, 2, 0],
+  ...BASE_MANTICORE_PATTERNS,
+  // Uncharged versions have the same pattern as charged
+  ...Object.fromEntries(
+    Object.entries(BASE_MANTICORE_PATTERNS).map(([key, value]) => [`u${key}`, value])
+  ),
 };
 const MANTICORE_DELAY = 5;
 const MANTICORE_CHARGE_TIME = 10;
@@ -269,33 +261,27 @@ export const onCanvasRightClick = function (e: React.MouseEvent) {
       if (doesCollide(x, y, 1, mobs[i][0], mobs[i][1], SIZE[mobs[i][2]])) {
         // Only toggle charged state for manticores
         if (mobs[i][2] === MANTICORE) {
-          const isCurrentlyCharged = mobs[i][7] !== false;
-          const originalExtra = mobs[i][9];
+          const currentExtra = mobs[i][6];
+          const originalExtra = mobs[i][7];
           
           // Don't toggle unknown manticores
-          if (originalExtra === "u") {
+          if (currentExtra === null || originalExtra === "u") {
             break;
           }
-          
-          // Toggle charged state
-          mobs[i][7] = !isCurrentlyCharged;
-          mobs[i][8] = 0; // Reset charging ticks
-          
-          // Update the original extra to reflect the new charged state
-          if (originalExtra === "r" || originalExtra === "ur") {
-            mobs[i][9] = isCurrentlyCharged ? "ur" : "r";
-          } else if (originalExtra === "m" || originalExtra === "um") {
-            mobs[i][9] = isCurrentlyCharged ? "um" : "m";
-          } else if (originalExtra) {
-            // Handle MM3 patterns
-            if (isCurrentlyCharged) {
-              // Make it uncharged by prepending 'u'
-              mobs[i][9] = ("u" + originalExtra.replace(/^u/, "")) as MobExtra;
-            } else {
-              // Make it charged by removing 'u' prefix if present
-              mobs[i][9] = originalExtra.replace(/^u/, "") as MobExtra;
-            }
+
+          // Toggle between charged and uncharged
+          const isCurrentlyUncharged = currentExtra.startsWith("u");
+          if (isCurrentlyUncharged) {
+            // Switch to charged: remove 'u' prefix
+            mobs[i][6] = currentExtra.substring(1) as MobExtra;
+            mobs[i][7] = currentExtra.substring(1) as MobExtra; // Update originalExtra too
+          } else {
+            // Switch to uncharged: add 'u' prefix
+            const uncharged = ("u" + currentExtra) as MobExtra;
+            mobs[i][6] = uncharged;
+            mobs[i][7] = uncharged; // Update originalExtra too
           }
+          mobs[i][5] = 0; // Reset attack delay
         }
         break;
       }
@@ -402,31 +388,9 @@ function loadSpawns() {
       
       const newMob: Mob = [lx, ly, lm, lx, ly, 0, extra as MobExtra];
       
-      // Handle uncharged manticores
-      if (lm === MANTICORE) {
-        var isCharged = true;
-        var chargingTicks = 0;
-        var originalExtra = extra as MobExtra; // Store the original state
-        
-        if (extra) {
-          if (extra === "u") {
-            isCharged = false;
-            newMob[6] = null; // Will be determined randomly when it charges
-          } else if (extra === "ur") {
-            isCharged = false;
-            newMob[6] = "r" as MobExtra;
-          } else if (extra === "um") {
-            isCharged = false;
-            newMob[6] = "m" as MobExtra;
-          } else if (extra.startsWith("u")) {
-            // MM3 uncharged patterns: uMrm, uMmr, urMm, umMr
-            isCharged = false;
-            // Remove the 'u' prefix to get the charged pattern
-            newMob[6] = extra.substring(1) as MobExtra;
-          }
-        }
-        
-        newMob.push(isCharged, chargingTicks, originalExtra);
+      // Store original extra for manticores
+      if (lm === MANTICORE && extra) {
+        newMob.push(extra as MobExtra);
       }
       
       mobs.push(newMob);
@@ -501,8 +465,8 @@ export function getSpawnUrl(mobSpecs: MobSpec[]) {
 
 const getMobSpec = (mob: Mob): MobSpec => {
   // For manticores, use the original extra value if it exists
-  if (mob[2] === MANTICORE && mob[9] !== undefined) {
-    return [mob[0], mob[1], mob[2], mob[9]] as MobSpec;
+  if (mob[2] === MANTICORE && mob[7] !== undefined) {
+    return [mob[0], mob[1], mob[2], mob[7]] as MobSpec;
   }
   // For non-manticores or old format, use the current extra value
   return [mob[0], mob[1], mob[2], mob[6]] as MobSpec;
@@ -562,8 +526,8 @@ export function copyReplayURL() {
         (value >> 24) & 0xff,
         mobs[mobIdx][2],
         // Use original extra value for manticores if available
-        mobs[mobIdx][2] === MANTICORE && mobs[mobIdx][9] !== undefined
-          ? mobs[mobIdx][9]
+        mobs[mobIdx][2] === MANTICORE && mobs[mobIdx][7] !== undefined
+          ? mobs[mobIdx][7]
           : mobs[mobIdx][6],
       ] as MobSpec
   );
@@ -792,13 +756,6 @@ export function place() {
         }
       }
       // Create mob array
-      let effectiveExtra = modeExtra;
-      
-      // For unknown manticores, set the effective extra to null (will be determined when charging)
-      if (mode === MANTICORE && modeExtra === "u") {
-        effectiveExtra = null;
-      }
-      
       const newMob: Mob = [
         cursorLocation[0],
         cursorLocation[1],
@@ -806,19 +763,12 @@ export function place() {
         cursorLocation[0],
         cursorLocation[1],
         0,
-        effectiveExtra,
+        modeExtra,
       ];
       
-      // Only add charged state for manticores
-      if (mode === MANTICORE) {
-        let isCharged = true;
-        let chargingTicks = undefined;
-        let originalExtra = modeExtra; // Store the original state (including "u")
-        if (modeExtra === "u" || modeExtra === "ur" || modeExtra === "um") {
-          isCharged = false;
-          chargingTicks = 0;
-        }
-        newMob.push(isCharged, chargingTicks, originalExtra);
+      // Store original extra for manticores
+      if (mode === MANTICORE && modeExtra) {
+        newMob.push(modeExtra);
       }
       
       mobs.push(newMob);
@@ -902,13 +852,15 @@ export function step(draw: boolean = false) {
     for (var i = 0; i < mobs.length; i++) {
       if (mobs[i][2] === MANTICORE) {
         const mob = mobs[i];
-        const isCharged = mob[7] !== false;
-        const chargingTicks = mob[8];
+        const currentExtra = mob[6];
         const x = mob[0];
         const y = mob[1];
         
-        if (!isCharged && (!chargingTicks || chargingTicks === 0) && 
-            canAttack && hasLOS(x, y, selected[0], selected[1], SIZE[MANTICORE], RANGE[MANTICORE], true)) {
+        // Check if uncharged (starts with 'u')  
+        // For manticores, currentExtra is always a string, but TypeScript doesn't know that
+        const isUncharged = currentExtra?.startsWith('u') ?? false;
+        
+        if (isUncharged && canAttack && hasLOS(x, y, selected[0], selected[1], SIZE[MANTICORE], RANGE[MANTICORE], true)) {
           manticoresStartingToCharge.push(i);
         }
       }
@@ -919,23 +871,21 @@ export function step(draw: boolean = false) {
     for (var i = 0; i < mobs.length; i++) {
       if (mobs[i][2] === MANTICORE && !manticoresStartingToCharge.includes(i)) {
         const mob = mobs[i];
-        const otherChargingTicks = mob[8];
-        const otherIsCharged = mob[7];
-        const otherOriginalExtra = mob[9];
+        const currentExtra = mob[6];
+        const originalExtra = mob[7];
         
-        if ((otherChargingTicks && otherChargingTicks > 0 && otherChargingTicks < MANTICORE_CHARGE_TIME) ||
-            (otherIsCharged && otherOriginalExtra && otherOriginalExtra.includes("u"))) {
-          const otherExtra = mob[6];
-          // For MM3, any style can be established (including MM3 patterns)
-          if (otherExtra) {
-            establishedStyle = otherExtra;
+        // Check if this manticore is charged or charging (has cooldown > 0)
+        const isChargedOrCharging = currentExtra && !currentExtra.startsWith('u');
+        
+        // If it's charged/charging and originally had 'u' in it, it can establish style
+        if (isChargedOrCharging) {
+          if (originalExtra && originalExtra.includes('u')) {
+            // This manticore started uncharged but is now charging/charged
+            establishedStyle = currentExtra;
             break;
-          }
-        } else if (otherIsCharged && !otherOriginalExtra?.includes("u")) {
-          // Already charged manticores without 'u' also establish style
-          const otherExtra = mob[6];
-          if (otherExtra) {
-            establishedStyle = otherExtra;
+          } else if (!originalExtra?.includes('u')) {
+            // Already charged manticores without 'u' also establish style
+            establishedStyle = currentExtra;
             break;
           }
         }
@@ -952,7 +902,7 @@ export function step(draw: boolean = false) {
     if (!establishedStyle && manticoresStartingToCharge.length > 0) {
       // Check what types are starting simultaneously
       for (const idx of manticoresStartingToCharge) {
-        const originalExtra = mobs[idx][9];
+        const originalExtra = mobs[idx][7];
         if (originalExtra === "um") simultaneousUM = true;
         if (originalExtra === "ur") simultaneousUR = true;
         // Check for MM3 patterns that are known (not starting with 'u')
@@ -970,8 +920,8 @@ export function step(draw: boolean = false) {
       // randomly choose one of the two to determine the style for both.
       if (manticoresStartingToCharge.length === 2) {
         const [aIdx, bIdx] = manticoresStartingToCharge;
-        const aOrig = mobs[aIdx][9];
-        const bOrig = mobs[bIdx][9];
+        const aOrig = mobs[aIdx][7];
+        const bOrig = mobs[bIdx][7];
         const aCandidate = aOrig && aOrig.startsWith("u") && aOrig.length > 1 ? (aOrig.substring(1) as MobExtra) : null;
         const bCandidate = bOrig && bOrig.startsWith("u") && bOrig.length > 1 ? (bOrig.substring(1) as MobExtra) : null;
         if (aCandidate && bCandidate && aCandidate !== bCandidate) {
@@ -986,26 +936,29 @@ export function step(draw: boolean = false) {
     // Assign styles to manticores starting to charge
     for (const idx of manticoresStartingToCharge) {
       const mob = mobs[idx];
-      const originalExtra = mob[9];
-      mob[8] = MANTICORE_CHARGE_TIME;
+      const originalExtra = mob[7];
+      const currentExtra = mob[6];
+      
+      // Determine the style to charge with
+      let chargedStyle: MobExtra = null;
       
       if (establishedStyle) {
-        mob[6] = establishedStyle as MobExtra;
+        chargedStyle = establishedStyle as MobExtra;
       } else if (groupSelectedStyle) {
         // Group-selected sync for exactly-two differing uncharged-known manticores
-        mob[6] = groupSelectedStyle;
-      } else if (originalExtra && originalExtra.startsWith("u") && originalExtra.length > 1) {
+        chargedStyle = groupSelectedStyle;
+      } else if (currentExtra && currentExtra.startsWith("u") && currentExtra.length > 1) {
         // Uncharged but known pattern (ur, um, uMrm, uMmr, urMm, umMr)
-        mob[6] = originalExtra.substring(1) as MobExtra;
-      } else if (originalExtra === "u") {
+        chargedStyle = currentExtra.substring(1) as MobExtra;
+      } else if (currentExtra === "u") {
         // Completely unknown pattern
         if (simultaneousKnownMM3) {
           // Inherit from simultaneously charging known MM3 pattern
-          mob[6] = simultaneousKnownMM3 as MobExtra;
+          chargedStyle = simultaneousKnownMM3 as MobExtra;
         } else if (simultaneousUM) {
-          mob[6] = "m" as MobExtra;
+          chargedStyle = "m" as MobExtra;
         } else if (simultaneousUR) {
-          mob[6] = "r" as MobExtra;
+          chargedStyle = "r" as MobExtra;
         } else {
           // Generate random style once for all unknown manticores starting simultaneously
           if (!randomStyleForUnknowns) {
@@ -1018,32 +971,22 @@ export function step(draw: boolean = false) {
               randomStyleForUnknowns = (Math.random() < 0.5 ? "r" : "m") as MobExtra;
             }
           }
-          mob[6] = randomStyleForUnknowns;
+          chargedStyle = randomStyleForUnknowns;
         }
-      } else if (!originalExtra?.startsWith("u")) {
-        // Already known pattern (r, m, Mrm, Mmr, rMm, mMr)
-        mob[6] = originalExtra as MobExtra;
+      }
+      
+      // Set the charged style and attack delay
+      if (chargedStyle) {
+        mob[6] = chargedStyle;
+        mob[5] = MANTICORE_CHARGE_TIME; // 10 tick charge delay
       }
       
       // Update originalExtra when an unknown "u" manticore chooses its style randomly
       // Only update if it's choosing randomly (not inheriting from any other manticore)
-      if (originalExtra === "u" && mob[6] && 
+      if (originalExtra === "u" && chargedStyle && 
           !establishedStyle && !simultaneousUM && !simultaneousUR && !simultaneousKnownMM3) {
-        // Convert the determined pattern to the appropriate uncharged form
-        const currentExtra = mob[6];
-        if (currentExtra === "r") {
-          mob[9] = "ur" as MobExtra;
-        } else if (currentExtra === "m") {
-          mob[9] = "um" as MobExtra;
-        } else if (currentExtra === "Mrm") {
-          mob[9] = "uMrm" as MobExtra;
-        } else if (currentExtra === "Mmr") {
-          mob[9] = "uMmr" as MobExtra;
-        } else if (currentExtra === "rMm") {
-          mob[9] = "urMm" as MobExtra;
-        } else if (currentExtra === "mMr") {
-          mob[9] = "umMr" as MobExtra;
-        }
+        // Convert the determined pattern to the appropriate uncharged form by prepending "u"
+        mob[7] = ("u" + chargedStyle) as MobExtra;
       }
     }
     
@@ -1061,9 +1004,11 @@ export function step(draw: boolean = false) {
         //attack
         if (canAttack && hasLOS(x, y, selected[0], selected[1], s, r, true)) {
           if (mob[2] === MANTICORE) {
-            // Attack if charged and ready
-            const isCharged = mob[7] !== false;
-            if (isCharged || mob[7]) {
+            // Check if manticore is charged (not starting with 'u' and not null)
+            const currentExtra = mob[6];
+            const isCharged = currentExtra && !currentExtra.startsWith('u');
+            
+            if (isCharged) {
               if (mob[5] <= 0) {
                 if (!manticoreFiredThisTick) {
                   manticoreTicksRemaining[i] = 3;
@@ -1108,26 +1053,6 @@ export function step(draw: boolean = false) {
       delayAllReadyMantis(MANTICORE_DELAY);
     }
     
-    // Handle manticore charging countdown (after all movement/attacks processed)
-    for (var i = 0; i < mobs.length; i++) {
-      if (mobs[i][2] === MANTICORE) {
-        const isCharged = mobs[i][7] !== false;
-        const chargingTicks = mobs[i][8];
-        
-        // Continue charging if already started
-        if (!isCharged && chargingTicks && chargingTicks > 0) {
-          if (chargingTicks > 1) {
-            mobs[i][8] = chargingTicks - 1;
-          } else if (chargingTicks === 1) {
-            // Finish charging
-            mobs[i][8] = 0;
-            mobs[i][7] = true;
-            mobs[i][5] = 0; // Ready to attack immediately
-          }
-        }
-      }
-    }
-    
     playerTape.push([selected[0], selected[1]]);
     tape.push(line);
   }
@@ -1138,7 +1063,12 @@ export function step(draw: boolean = false) {
 }
 function delayAllReadyMantis(ticks: number) {
   mobs
-    .filter((mob) => mob[2] === MANTICORE && mob[5] <= 0 && mob[7] !== false)
+    .filter((mob) => {
+      if (mob[2] !== MANTICORE || mob[5] > 0) return false;
+      const currentExtra = mob[6];
+      // Check if charged (not starting with 'u')
+      return currentExtra && !currentExtra.startsWith('u');
+    })
     .forEach((mob) => {
       mob[5] = ticks;
     });
@@ -1174,32 +1104,10 @@ export function reset() {
     
     // Reset manticores to their original state
     if (mobs[i][2] === MANTICORE) {
-      const originalExtra = mobs[i][9];
+      const originalExtra = mobs[i][7];
       if (originalExtra !== undefined) {
         // Restore the original extra value
-        if (originalExtra === "u") {
-          mobs[i][6] = null; // Will be determined randomly again
-          mobs[i][7] = false;
-          mobs[i][8] = 0;
-        } else if (originalExtra === "ur") {
-          mobs[i][6] = "r" as MobExtra;
-          mobs[i][7] = false;
-          mobs[i][8] = 0;
-        } else if (originalExtra === "um") {
-          mobs[i][6] = "m" as MobExtra;
-          mobs[i][7] = false;
-          mobs[i][8] = 0;
-        } else if (originalExtra && originalExtra.startsWith("u")) {
-          // MM3 uncharged patterns: uMrm, uMmr, urMm, umMr
-          mobs[i][6] = originalExtra.substring(1) as MobExtra; // Remove 'u' prefix
-          mobs[i][7] = false; // Uncharged
-          mobs[i][8] = 0;
-        } else {
-          // Charged manticores (r, m, or MM3 patterns like Mrm, Mmr, rMm, mMr)
-          mobs[i][6] = originalExtra;
-          mobs[i][7] = true;
-          mobs[i][8] = 0;
-        }
+        mobs[i][6] = originalExtra;
       }
     }
   }
@@ -1566,9 +1474,10 @@ export function drawWave() {
       );
     }
     const mobExtra = mobs[i][6];
-    if (t === MANTICORE && mobExtra !== null && mobExtra !== "u") {
+    if (t === MANTICORE && mobExtra && mobExtra !== "u") {
       const colorPattern = MANTICORE_PATTERNS[mobExtra];
-      const isUncharged = mobs[i][7] === false;
+      // Check if uncharged by looking at the extra string
+      const isUncharged = mobExtra.startsWith('u');
       drawManticorePattern(colorPattern, x, y, isUncharged);
     }
 
