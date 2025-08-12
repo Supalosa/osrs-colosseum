@@ -35,7 +35,6 @@ const MODE_PLAYER = 0;
 
 export const MANTICORE = 4;
 const MANTICORE_ATTACKS = ["lime", "blue", "red"];
-const DEFAULT_MANTICORE_MODE = "r";
 
 // Base patterns for manticore attacks
 // values are indexes into MANTICORE_ATTACKS (0=range/lime, 1=mage/blue, 2=melee/red)
@@ -983,10 +982,7 @@ function updateManticoreAttackStyles(line: TapeEntry) {
   Object.entries(manticoreTicksRemaining).forEach(([idx, ticks]) => {
     const index = Number(idx);
     if (ticks > 0 && mobs[index]) {
-      let manticoreMode = mobs[index][6];
-      if (!manticoreMode || manticoreMode === "u") {
-        manticoreMode = DEFAULT_MANTICORE_MODE;
-      }
+      const manticoreMode = mobs[index][6]!;
       const manticoreStyles = MANTICORE_PATTERNS[manticoreMode];
       const currentStyle = manticoreStyles[3 - ticks];
       const prevLine = line[index];
