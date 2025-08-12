@@ -1371,9 +1371,8 @@ export function drawWave() {
     if (mode === MANTICORE && modeExtra) {
       // Don't draw orbs for unknown manticores
       if (modeExtra !== "u") {
-        const actualExtra = modeExtra === "ur" ? "r" : modeExtra === "um" ? "m" : modeExtra;
-        const colorPattern = MANTICORE_PATTERNS[actualExtra];
-        const isUncharged = modeExtra === "ur" || modeExtra === "um";
+        const colorPattern = MANTICORE_PATTERNS[modeExtra];
+        const isUncharged = modeExtra.startsWith("u");
         drawManticorePattern(colorPattern, cursorLocation[0], cursorLocation[1], isUncharged);
       }
     }
