@@ -784,7 +784,7 @@ export function place() {
     drawWave();
   }
 }
-function handleReplay() {
+function advanceReplay() {
   if (replay && replayTick !== null) {
     if (replay[replayTick]) {
       selected = replay[replayTick];
@@ -993,7 +993,7 @@ export function step(draw: boolean = false) {
     stepStartPosition = [...selected];
   }
   
-  handleReplay();
+  advanceReplay();
   
   if (mode == 0 && mobs.length > 0) {
     const canAttack = fromWaveStart ? tickCount >= DELAY_FIRST_ATTACK_TICKS : true;
