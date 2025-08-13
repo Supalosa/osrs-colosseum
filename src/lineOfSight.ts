@@ -1022,7 +1022,7 @@ export function step(draw: boolean = false) {
     updateManticoreAttackStyles(line);
     
     if (manticoreFired) {
-      delayAllReadyMantis(MANTICORE_DELAY);
+      delayAllReadyMantis();
     }
     
     playerTape.push([selected[0], selected[1]]);
@@ -1034,7 +1034,7 @@ export function step(draw: boolean = false) {
   }
 }
 
-function delayAllReadyMantis(ticks: number) {
+function delayAllReadyMantis() {
   mobs
     .filter((mob) => {
       if (mob[2] !== MANTICORE || mob[5] > 0) return false;
@@ -1043,7 +1043,7 @@ function delayAllReadyMantis(ticks: number) {
       return currentExtra && !currentExtra.startsWith('u');
     })
     .forEach((mob) => {
-      mob[5] = ticks;
+      mob[5] = MANTICORE_DELAY;
     });
 }
 
