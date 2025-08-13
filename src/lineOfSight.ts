@@ -836,7 +836,8 @@ function moveMobs(canMove: boolean, canGainLos: boolean) {
   }
 }
 
-function getManticoresStartingToCharge(canAttack: boolean): number[] {
+function handleManticoreCharging(canAttack: boolean) {
+  // Find manticores that should start charging
   let manticoresStartingToCharge: number[] = [];
   for (var i = 0; i < mobs.length; i++) {
     if (mobs[i][2] === MANTICORE) {
@@ -852,28 +853,30 @@ function getManticoresStartingToCharge(canAttack: boolean): number[] {
       }
     }
   }
-  return manticoresStartingToCharge;
-}
-
-function getEstablishedManticoreStyle(excludeIndices: number[]): string | null {
+  
+  if (manticoresStartingToCharge.length === 0) {
+    return;
+  }
+  
+  // Check if there's already a charged/charging manticore to inherit from
+  let establishedStyle: string | null = null;
   for (var i = 0; i < mobs.length; i++) {
-    if (mobs[i][2] === MANTICORE && !excludeIndices.includes(i)) {
+    if (mobs[i][2] === MANTICORE && !manticoresStartingToCharge.includes(i)) {
       const mob = mobs[i];
       const currentExtra = mob[6];
       
       const isChargedOrCharging = currentExtra && !currentExtra.startsWith('u');
       
       if (isChargedOrCharging) {
-        return currentExtra;
+        establishedStyle = currentExtra;
+        break;
       }
     }
   }
-  return null;
-}
-
-function determineManticoreStyles(manticoresStartingToCharge: number[], establishedStyle: string | null) {
+  
+  // Determine styles for the charging manticores
   let knownStyles: string[] = [];
-  if (!establishedStyle && manticoresStartingToCharge.length > 0) {
+  if (!establishedStyle) {
     for (const idx of manticoresStartingToCharge) {
       const originalExtra = mobs[idx][7];
       if (originalExtra && originalExtra !== "u") {
@@ -931,6 +934,8 @@ function determineManticoreStyles(manticoresStartingToCharge: number[], establis
   }
 }
 
+
+
 function processAttacks(canAttack: boolean): { line: TapeEntry, manticoreFired: boolean } {
   let line: TapeEntry = [];
   let manticoreFiredThisTick = false;
@@ -971,7 +976,7 @@ function processAttacks(canAttack: boolean): { line: TapeEntry, manticoreFired: 
   return { line, manticoreFired: manticoreFiredThisTick };
 }
 
-function updateManticoreAttackStyles(line: TapeEntry) {
+function recordManticoreOrbSequence(line: TapeEntry) {
   Object.entries(manticoreTicksRemaining).forEach(([idx, ticks]) => {
     const index = Number(idx);
     if (ticks > 0 && mobs[index]) {
@@ -1000,24 +1005,23 @@ export function step(draw: boolean = false) {
     const canMove = fromWaveStart ? tickCount > 0 : true;
     const canGainLos = fromWaveStart ? tickCount > 1 : true;
     
-    // Phase 1: Move all mobs
+    // Move all mobs
     moveMobs(canMove, canGainLos);
     
-    // Phase 2: Handle manticore charging
-    const manticoresStartingToCharge = getManticoresStartingToCharge(canAttack);
-    const establishedStyle = getEstablishedManticoreStyle(manticoresStartingToCharge);
-    determineManticoreStyles(manticoresStartingToCharge, establishedStyle);
+    // Handle manticore charging
+    handleManticoreCharging(canAttack);
     
-    // Phase 3: Process attacks
+    // Process attacks
     const { line, manticoreFired } = processAttacks(canAttack);
     
-    // Phase 4: Update manticore attack styles
-    updateManticoreAttackStyles(line);
+    // Record manticore orb progression in attack tape
+    recordManticoreOrbSequence(line);
     
     if (manticoreFired) {
       delayAllReadyMantis();
     }
     
+    // Record this tick's player position and mob actions to history
     playerTape.push([selected[0], selected[1]]);
     tape.push(line);
   }
