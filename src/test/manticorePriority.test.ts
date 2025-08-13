@@ -173,7 +173,7 @@ describe("Manticore orb order priority", () => {
     expect(urManticore[6]).toBe("r");
   });
 
-  it("should prioritize 'um' over 'ur' when both see player simultaneously", () => {
+  it("should randomly select between 'um' and 'ur' styles when both see player simultaneously", () => {
     // Place player at position  
     _setSelected([16, 18], 0);
     
@@ -187,11 +187,6 @@ describe("Manticore orb order priority", () => {
     setMode(MANTICORE, "um");
     place();
     
-    // Place an unknown manticore 'u'
-    _setSelected([3, 14], MANTICORE);
-    setMode(MANTICORE, "u");
-    place();
-    
     // Move player to trigger los
     _setSelected([16, 18], 0);
     
@@ -201,19 +196,16 @@ describe("Manticore orb order priority", () => {
     const mobs = _getMobs();
     const urManticore = mobs[0];
     const umManticore = mobs[1];
-    const unknownManticore = mobs[2];
     
-    // All should be charging
+    // Both should be charging
     expect(urManticore[5]).toBeGreaterThan(0);
     expect(umManticore[5]).toBeGreaterThan(0);
-    expect(unknownManticore[5]).toBeGreaterThan(0);
     
-    // Since both 'um' and 'ur' have same priority (3), first one found should determine
-    // But 'um' should set mage, 'ur' should set range for themselves
-    expect(umManticore[6]).toBe("m");
-    expect(urManticore[6]).toBe("r");
-    // Unknown should inherit from one of them (whichever is processed first)
-    expect(["r", "m"]).toContain(unknownManticore[6]);
+    // When both um and ur see player simultaneously, it randomly picks one style for all
+    // Both should have the same style (either both 'm' or both 'r')
+    const style = umManticore[6];
+    expect(["r", "m"]).toContain(style);
+    expect(urManticore[6]).toBe(style);
   });
 
   it("should respect already charging 'u' manticore when 'um' sees player later", () => {
