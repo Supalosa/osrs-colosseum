@@ -25,6 +25,7 @@ img_sources.forEach((src, i) => {
   image.src = src;
   image.onload = () => {
     images[i] = image;
+    drawWave();
   };
 });
 
@@ -33,16 +34,33 @@ const colors = ["red", "cyan", "lime", "orange", "purple", "brown", "blue"];
 const MODE_PLAYER = 0;
 
 export const MANTICORE = 4;
-const MANTICORE_RANGE_FIRST = "r";
-const MANTICORE_MAGE_FIRST = "m";
 const MANTICORE_ATTACKS = ["lime", "blue", "red"];
-const DEFAULT_MANTICORE_MODE = MANTICORE_RANGE_FIRST;
-// values are indexes into MANTICORE_ATTACKS
+
+// Base patterns for manticore attacks
+// values are indexes into MANTICORE_ATTACKS (0=range/lime, 1=mage/blue, 2=melee/red)
+const BASE_MANTICORE_PATTERNS: { [patternName: string]: number[] } = {
+  // Standard patterns
+  "r": [0, 1, 2],  // range-mage-melee
+  "m": [1, 0, 2],  // mage-range-melee
+  // MM3 patterns  
+  "Mrm": [2, 0, 1], // melee-range-mage
+  "Mmr": [2, 1, 0], // melee-mage-range
+  "rMm": [0, 2, 1], // range-melee-mage
+  "mMr": [1, 2, 0], // mage-melee-range
+};
+
+// Build full pattern map including uncharged versions
 const MANTICORE_PATTERNS: { [patternName: string]: number[] } = {
-  [MANTICORE_RANGE_FIRST]: [0, 1, 2],
-  [MANTICORE_MAGE_FIRST]: [1, 0, 2],
+  ...BASE_MANTICORE_PATTERNS,
+  // Uncharged versions have the same pattern as charged
+  ...Object.fromEntries(
+    Object.entries(BASE_MANTICORE_PATTERNS).map(([key, value]) => [`u${key}`, value])
+  ),
 };
 const MANTICORE_DELAY = 5;
+const MANTICORE_CHARGE_TIME = 10;
+const MM3_PATTERNS = ["r", "m", "Mrm", "Mmr", "rMm", "mMr"];
+const STANDARD_PATTERNS = ["r", "m"];
 
 const MINOTAUR = 5;
 const MINOTAUR_HEAL_RANGE = 7;
@@ -81,6 +99,7 @@ var degen = false;
 const b5Tile = [7, 15] as const;
 var cursorLocation: Coordinates | null = null;
 var selected: Coordinates = [...b5Tile];
+var stepStartPosition: Coordinates | null = null;
 var mobs: Mob[] = [];
 var showSpawns = true;
 var showPlayerLoS = true;
@@ -126,6 +145,7 @@ let manticoreTicksRemaining: { [mobIndex: number]: number } = {};
 
 let mapElement: HTMLCanvasElement | null = null;
 let fromWaveStart: boolean = false;
+let mantimayhem3: boolean = false;
 let showVenatorBounce: boolean = false;
 
 var ctx: CanvasRenderingContext2D | null = null;
@@ -139,6 +159,11 @@ const CANVAS_HEIGHT = size * MAP_HEIGHT;
 export const setFromWaveStart = (val: boolean) => {
   fromWaveStart = val;
   losListener?.onFromWaveStartChanged(val);
+};
+
+export const setMantimayhem3 = (val: boolean) => {
+  mantimayhem3 = val;
+  losListener?.onMantimayhem3Changed(val);
 };
 
 export const setShowVenatorBounce = (show: boolean) => {
@@ -224,6 +249,47 @@ export const onCanvasDblClick = function (e: React.MouseEvent) {
     }
     drawWave();
   }
+};
+
+export const onCanvasRightClick = function (e: React.MouseEvent) {
+  e.preventDefault();
+  var x = e.nativeEvent.offsetX;
+  var y = e.nativeEvent.offsetY;
+  x = Math.floor(x / size);
+  y = Math.floor(y / size);
+  if (x < MAP_WIDTH) {
+    for (var i = 0; i < mobs.length; i++) {
+      if (doesCollide(x, y, 1, mobs[i][0], mobs[i][1], SIZE[mobs[i][2]])) {
+        // Only toggle charged state for manticores
+        if (mobs[i][2] === MANTICORE) {
+          const currentExtra = mobs[i][6];
+          const originalExtra = mobs[i][7];
+          
+          // Don't toggle unknown manticores
+          if (currentExtra === null || originalExtra === "u") {
+            break;
+          }
+
+          // Toggle between charged and uncharged
+          const isCurrentlyUncharged = currentExtra.startsWith("u");
+          if (isCurrentlyUncharged) {
+            // Switch to charged: remove 'u' prefix
+            mobs[i][6] = currentExtra.substring(1) as MobExtra;
+            mobs[i][7] = currentExtra.substring(1) as MobExtra; // Update originalExtra too
+          } else {
+            // Switch to uncharged: add 'u' prefix
+            const uncharged = ("u" + currentExtra) as MobExtra;
+            mobs[i][6] = uncharged;
+            mobs[i][7] = uncharged; // Update originalExtra too
+          }
+          mobs[i][5] = 0; // Reset attack delay
+        }
+        break;
+      }
+    }
+    drawWave();
+  }
+  return false;
 };
 
 export const onCanvasMouseWheel = function (e: React.WheelEvent) {
@@ -318,16 +384,29 @@ function loadSpawns() {
     } else {
       var lx = parseInt(spawn[i].slice(0, 2));
       var ly = parseInt(spawn[i].slice(2, 4));
-      var lm = parseInt(spawn[i].slice(4));
+      var lm = parseInt(spawn[i].slice(4, 5));
       var extra = spawn[i].slice(5) || null;
-      mobs.push([lx, ly, lm, lx, ly, 0, extra as MobExtra]);
+      
+      const newMob: Mob = [lx, ly, lm, lx, ly, 0, extra as MobExtra];
+      
+      // Store original extra for manticores
+      if (lm === MANTICORE && extra) {
+        newMob.push(extra as MobExtra);
+      }
+      
+      mobs.push(newMob);
     }
   }
   sortMobs();
-  const [playerCoords, ws] = parent.location.hash?.split("_");
-
-  if (ws === "ws") {
+  const hashParts = parent.location.hash?.split("_");
+  const playerCoords = hashParts?.[0];
+  
+  // Check for ws and mm3 flags
+  if (hashParts?.includes("ws")) {
     setFromWaveStart(true);
+  }
+  if (hashParts?.includes("mm3")) {
+    setMantimayhem3(true);
   }
 
   const hash = playerCoords
@@ -341,11 +420,22 @@ function loadSpawns() {
       const coordinate = decodeCoordinates(parseInt(split[0]));
       return Array(runLength).fill(coordinate);
     };
-    replay = hash.flatMap((section) => decodeSection(section));
-    replayTick = 0;
-    selected = replay[0];
-    step();
-    replayAuto = setTimeout(() => doAutoTick(), 600);
+    const positions = hash.flatMap((section) => decodeSection(section));
+    
+    // Check if this is a simple spawn URL (single position) or a replay URL (multiple positions or run-length encoded)
+    const isReplay = positions.length > 1 || hash.some(section => section.includes("x"));
+    
+    if (isReplay) {
+      // This is a replay URL - start the replay
+      replay = positions;
+      replayTick = 0;
+      selected = replay[0];
+      step();
+      replayAuto = setTimeout(() => doAutoTick(), 600);
+    } else {
+      // This is a spawn URL with just a player position - set position without starting replay
+      selected = positions[0];
+    }
   }
 }
 
@@ -374,12 +464,43 @@ export function getSpawnUrl(mobSpecs: MobSpec[]) {
   return url;
 }
 
-const getMobSpec = (mob: Mob): MobSpec =>
-  [mob[0], mob[1], mob[2], mob[6]] as MobSpec;
+const getMobSpec = (mob: Mob): MobSpec => {
+  // For manticores, use the original extra value if it exists
+  if (mob[2] === MANTICORE && mob[7] !== undefined) {
+    return [mob[0], mob[1], mob[2], mob[7]] as MobSpec;
+  }
+  // For non-manticores or old format, use the current extra value
+  return [mob[0], mob[1], mob[2], mob[6]] as MobSpec;
+};
 
 export function copySpawnURL() {
   const mobSpecs = mobs.filter((mob) => mob[2] > MODE_PLAYER).map(getMobSpec);
   var url = getSpawnUrl(mobSpecs);
+  
+  // Check if player has been moved from starting position
+  const playerMoved = selected[0] !== b5Tile[0] || selected[1] !== b5Tile[1];
+  
+  // Build hash fragments
+  const hashParts = [];
+  
+  // Add player position if moved
+  if (playerMoved) {
+    hashParts.push(encodeCoordinate(selected));
+  }
+  
+  // Add flags if enabled  
+  if (fromWaveStart) {
+    hashParts.push("_ws");
+  }
+  if (mantimayhem3) {
+    hashParts.push("_mm3");
+  }
+  
+  // Add hash if there are any parts
+  if (hashParts.length > 0) {
+    url = url.concat("#" + hashParts.join(""));
+  }
+  
   copyQ(url);
   alert("Spawn URL Copied!");
 }
@@ -405,7 +526,10 @@ export function copyReplayURL() {
         (value >> 16) & 0xff,
         (value >> 24) & 0xff,
         mobs[mobIdx][2],
-        mobs[mobIdx][6],
+        // Use original extra value for manticores if available
+        mobs[mobIdx][2] === MANTICORE && mobs[mobIdx][7] !== undefined
+          ? mobs[mobIdx][7]
+          : mobs[mobIdx][6],
       ] as MobSpec
   );
   var url = getReplayURL(mobSpecs, playerTicks, fromWaveStart);
@@ -439,6 +563,9 @@ export function getReplayURL(mobSpecs: MobSpec[], playerTicks: Coordinates[], fr
   }
   if (fromWaveStart) {
     url = url.concat("_", "ws");
+  }
+  if (mantimayhem3) {
+    url = url.concat("_", "mm3");
   }
   return url;
 }
@@ -629,7 +756,8 @@ export function place() {
           return;
         }
       }
-      mobs.push([
+      // Create mob array
+      const newMob: Mob = [
         cursorLocation[0],
         cursorLocation[1],
         mode,
@@ -637,18 +765,26 @@ export function place() {
         cursorLocation[1],
         0,
         modeExtra,
-      ]);
+      ];
+      
+      // Store original extra for manticores
+      if (mode === MANTICORE && modeExtra) {
+        newMob.push(modeExtra);
+      }
+      
+      mobs.push(newMob);
       sortMobs();
+      // Only reset mode after successfully placing an NPC
+      mode = 0;
+      modeExtra = null;
     } else {
       selected = [...cursorLocation];
     }
     cursorLocation = null;
+    drawWave();
   }
-  mode = 0;
-  modeExtra = null;
-  drawWave();
 }
-export function step(draw: boolean = false) {
+function advanceReplay() {
   if (replay && replayTick !== null) {
     if (replay[replayTick]) {
       selected = replay[replayTick];
@@ -661,87 +797,231 @@ export function step(draw: boolean = false) {
       replayAuto = setTimeout(() => doAutoTick(), 600);
     }
   }
+}
+
+function moveMobs(canMove: boolean, canGainLos: boolean) {
+  for (var i = 0; i < mobs.length; i++) {
+    if (mobs[i][2] < 8) {
+      var mob = mobs[i];
+      mob[5]--; // Decrement cooldown
+      var x = mob[0];
+      var y = mob[1];
+      var t = mob[2];
+      var s = SIZE[t];
+      var r = RANGE[t];
+      
+      if (canMove && !(canGainLos && hasLOS(x, y, selected[0], selected[1], s, r, true))) {
+        var dx = x + Math.sign(selected[0] - x);
+        var dy = y + Math.sign(selected[1] - y);
+        //allows corner safespotting
+        if (doesCollide(dx, dy, s, selected[0], selected[1], 1)) {
+          dy = mob[1];
+        }
+        // 1x1 cannot cut corners around pillars for some reason
+        if (
+          legalPosition(dx, dy, s, i) &&
+          (s > 1 ||
+            (legalPosition(dx, y, s, i) && legalPosition(x, dy, s, i)))
+        ) {
+          // move diagonally
+          mob[0] = dx;
+          mob[1] = dy;
+        } else if (legalPosition(dx, y, s, i)) {
+          mob[0] = dx;
+        } else if (legalPosition(x, dy, s, i)) {
+          mob[1] = dy;
+        }
+      }
+    }
+  }
+}
+
+function handleManticoreCharging(canAttack: boolean) {
+  // Find manticores that should start charging
+  let manticoresStartingToCharge: number[] = [];
+  for (var i = 0; i < mobs.length; i++) {
+    if (mobs[i][2] === MANTICORE) {
+      const mob = mobs[i];
+      const currentExtra = mob[6];
+      const x = mob[0];
+      const y = mob[1];
+      
+      const isUncharged = currentExtra?.startsWith('u') ?? false;
+      
+      if (isUncharged && canAttack && hasLOS(x, y, selected[0], selected[1], SIZE[MANTICORE], RANGE[MANTICORE], true)) {
+        manticoresStartingToCharge.push(i);
+      }
+    }
+  }
+  
+  if (manticoresStartingToCharge.length === 0) {
+    return;
+  }
+  
+  // Check if there's already a charged/charging manticore to inherit from
+  let establishedStyle: string | null = null;
+  for (var i = 0; i < mobs.length; i++) {
+    if (mobs[i][2] === MANTICORE && !manticoresStartingToCharge.includes(i)) {
+      const mob = mobs[i];
+      const currentExtra = mob[6];
+      
+      const isChargedOrCharging = currentExtra && !currentExtra.startsWith('u');
+      
+      if (isChargedOrCharging) {
+        establishedStyle = currentExtra;
+        break;
+      }
+    }
+  }
+  
+  // Determine styles for the charging manticores
+  let knownStyles: string[] = [];
+  if (!establishedStyle) {
+    for (const idx of manticoresStartingToCharge) {
+      const originalExtra = mobs[idx][7];
+      if (originalExtra && originalExtra !== "u") {
+        const baseStyle = originalExtra.startsWith("u") ? originalExtra.substring(1) : originalExtra;
+        if (!knownStyles.includes(baseStyle)) {
+          knownStyles.push(baseStyle);
+        }
+      }
+    }
+  }
+  
+  let groupSelectedStyle: MobExtra | null = null;
+  if (knownStyles.length > 1) {
+    groupSelectedStyle = knownStyles[Math.floor(Math.random() * knownStyles.length)] as MobExtra;
+  }
+
+  let randomStyleForUnknowns: MobExtra | null = null;
+  
+  for (const idx of manticoresStartingToCharge) {
+    const mob = mobs[idx];
+    const originalExtra = mob[7];
+    const currentExtra = mob[6];
+    
+    let chargedStyle: MobExtra = null;
+    
+    if (establishedStyle) {
+      chargedStyle = establishedStyle as MobExtra;
+    } else if (groupSelectedStyle) {
+      chargedStyle = groupSelectedStyle;
+    } else if (currentExtra && currentExtra.startsWith("u") && currentExtra.length > 1) {
+      chargedStyle = currentExtra.substring(1) as MobExtra;
+    } else if (currentExtra === "u") {
+      if (knownStyles.length === 1) {
+        chargedStyle = knownStyles[0] as MobExtra;
+      } else if (knownStyles.length > 1) {
+        chargedStyle = groupSelectedStyle;
+      } else {
+        if (!randomStyleForUnknowns) {
+          const patterns = mantimayhem3 ? MM3_PATTERNS : STANDARD_PATTERNS;
+          randomStyleForUnknowns = patterns[Math.floor(Math.random() * patterns.length)] as MobExtra;
+        }
+        chargedStyle = randomStyleForUnknowns;
+      }
+    }
+    
+    if (chargedStyle) {
+      mob[6] = chargedStyle;
+      mob[5] = MANTICORE_CHARGE_TIME;
+    }
+    
+    if (originalExtra === "u" && chargedStyle && 
+        !establishedStyle && knownStyles.length === 0) {
+      mob[7] = ("u" + chargedStyle) as MobExtra;
+    }
+  }
+}
+
+
+
+function processAttacks(canAttack: boolean): { line: TapeEntry, manticoreFired: boolean } {
+  let line: TapeEntry = [];
+  let manticoreFiredThisTick = false;
+  
+  for (var i = 0; i < mobs.length; i++) {
+    if (mobs[i][2] < 8) {
+      var mob = mobs[i];
+      var x = mob[0];
+      var y = mob[1];
+      var t = mob[2];
+      var s = SIZE[t];
+      var r = RANGE[t];
+      var attacked = 0;
+      
+      if (canAttack && hasLOS(x, y, selected[0], selected[1], s, r, true)) {
+        if (mob[2] === MANTICORE) {
+          const currentExtra = mob[6];
+          const isCharged = currentExtra && !currentExtra.startsWith('u');
+          
+          if (isCharged && mob[5] <= 0 && !manticoreFiredThisTick) {
+            manticoreTicksRemaining[i] = 3;
+            attacked = 1;
+            mob[5] = CD[t];
+            manticoreFiredThisTick = true;
+          }
+        } else {
+          if (mob[5] <= 0) {
+            attacked = 1;
+            mob[5] = CD[t];
+          }
+        }
+      }
+      const value = attacked | ((x & 0xff) << 16) | ((y & 0xff) << 24);
+      line.push(value);
+    }
+  }
+  
+  return { line, manticoreFired: manticoreFiredThisTick };
+}
+
+function recordManticoreOrbSequence(line: TapeEntry) {
+  Object.entries(manticoreTicksRemaining).forEach(([idx, ticks]) => {
+    const index = Number(idx);
+    if (ticks > 0 && mobs[index]) {
+      const manticoreMode = mobs[index][6]!;
+      const manticoreStyles = MANTICORE_PATTERNS[manticoreMode];
+      const currentStyle = manticoreStyles[3 - ticks];
+      const prevLine = line[index];
+      line[index] = 1 | (currentStyle << 8) | (prevLine & 0xffff0000);
+      manticoreTicksRemaining[index] = ticks - 1;
+    } else {
+      delete manticoreTicksRemaining[index];
+    }
+  });
+}
+
+export function step(draw: boolean = false) {
+  // Capture the player's position when stepping begins
+  if (tickCount === 0 && !replay) {
+    stepStartPosition = [...selected];
+  }
+  
+  advanceReplay();
+  
   if (mode == 0 && mobs.length > 0) {
-    const canAttack = fromWaveStart
-      ? tickCount >= DELAY_FIRST_ATTACK_TICKS
-      : true;
+    const canAttack = fromWaveStart ? tickCount >= DELAY_FIRST_ATTACK_TICKS : true;
     const canMove = fromWaveStart ? tickCount > 0 : true;
     const canGainLos = fromWaveStart ? tickCount > 1 : true;
-    var line: TapeEntry = [];
-    let manticoreFiredThisTick = false;
-    for (var i = 0; i < mobs.length; i++) {
-      if (mobs[i][2] < 8) {
-        var mob = mobs[i];
-        mob[5]--;
-        var x = mob[0];
-        var y = mob[1];
-        var t = mob[2];
-        var s = SIZE[t];
-        var r = RANGE[t];
-        var attacked = 0;
-        //move
-        if (canMove && !(canGainLos && hasLOS(x, y, selected[0], selected[1], s, r, true))) {
-          var dx = x + Math.sign(selected[0] - x);
-          var dy = y + Math.sign(selected[1] - y);
-          //allows corner safespotting
-          if (doesCollide(dx, dy, s, selected[0], selected[1], 1)) {
-            dy = mob[1];
-          }
-          // 1x1 cannot cut corners around pillars for some reason
-          if (
-            legalPosition(dx, dy, s, i) &&
-            (s > 1 ||
-              (legalPosition(dx, y, s, i) && legalPosition(x, dy, s, i)))
-          ) {
-            // move diagonally
-            mob[0] = dx;
-            mob[1] = dy;
-          } else if (legalPosition(dx, y, s, i)) {
-            mob[0] = dx;
-          } else if (legalPosition(x, dy, s, i)) {
-            mob[1] = dy;
-          }
-        }
-        x = mob[0];
-        y = mob[1];
-        //attack
-        if (canAttack && hasLOS(x, y, selected[0], selected[1], s, r, true)) {
-          if (mob[5] <= 0) {
-            if (mob[2] === MANTICORE) {
-              if (!manticoreFiredThisTick) {
-                manticoreTicksRemaining[i] = 3;
-                attacked = 1;
-                mob[5] = CD[t];
-                // Delay any other mantis if they are ready to attack
-                manticoreFiredThisTick = true;
-              }
-            } else {
-              attacked = 1;
-              mob[5] = CD[t];
-            }
-          }
-        }
-        // pack the positions into 3rd and 4th byte (2nd byte is manticore attack style)
-        const value = attacked | ((x & 0xff) << 16) | ((y & 0xff) << 24);
-        line.push(value);
-      }
+    
+    // Move all mobs
+    moveMobs(canMove, canGainLos);
+    
+    // Handle manticore charging
+    handleManticoreCharging(canAttack);
+    
+    // Process attacks
+    const { line, manticoreFired } = processAttacks(canAttack);
+    
+    // Record manticore orb progression in attack tape
+    recordManticoreOrbSequence(line);
+    
+    if (manticoreFired) {
+      delayAllReadyMantis();
     }
-    Object.entries(manticoreTicksRemaining).forEach(([idx, ticks]) => {
-      const index = Number(idx);
-      if (ticks > 0 && mobs[index]) {
-        const manticoreMode = mobs[index][6] || DEFAULT_MANTICORE_MODE;
-        const manticoreStyles = MANTICORE_PATTERNS[manticoreMode];
-        const currentStyle = manticoreStyles[3 - ticks];
-        const prevLine = line[index];
-        line[index] = 1 | (currentStyle << 8) | (prevLine & 0xffff0000);
-        manticoreTicksRemaining[index] = ticks - 1;
-      } else {
-        delete manticoreTicksRemaining[index];
-      }
-    });
-    if (manticoreFiredThisTick) {
-      delayAllReadyMantis(MANTICORE_DELAY);
-    }
+    
+    // Record this tick's player position and mob actions to history
     playerTape.push([selected[0], selected[1]]);
     tape.push(line);
   }
@@ -750,13 +1030,20 @@ export function step(draw: boolean = false) {
     drawWave();
   }
 }
-function delayAllReadyMantis(ticks: number) {
+
+function delayAllReadyMantis() {
   mobs
-    .filter((mob) => mob[2] === MANTICORE && mob[5] <= 0)
+    .filter((mob) => {
+      if (mob[2] !== MANTICORE || mob[5] > 0) return false;
+      const currentExtra = mob[6];
+      // Check if charged (not starting with 'u')
+      return currentExtra && !currentExtra.startsWith('u');
+    })
     .forEach((mob) => {
-      mob[5] = ticks;
+      mob[5] = MANTICORE_DELAY;
     });
 }
+
 function stopReplay() {
   replay = null;
   replayTick = null;
@@ -770,6 +1057,8 @@ function stopReplay() {
 export function remove() {
   mobs = [];
   stopReplay();
+  selected = [...b5Tile];
+  stepStartPosition = null;
   const url = new URL(window.location.href);
   url.search = "";
   url.hash = "";
@@ -783,6 +1072,15 @@ export function reset() {
     mobs[i][0] = mobs[i][3];
     mobs[i][1] = mobs[i][4];
     mobs[i][5] = 0;
+    
+    // Reset manticores to their original state
+    if (mobs[i][2] === MANTICORE) {
+      const originalExtra = mobs[i][7];
+      if (originalExtra !== undefined) {
+        // Restore the original extra value
+        mobs[i][6] = originalExtra;
+      }
+    }
   }
   manticoreTicksRemaining = {};
   tape = [];
@@ -792,9 +1090,13 @@ export function reset() {
   if (replay) {
     replayTick = 0;
     selected = replay[0];
+  } else if (stepStartPosition) {
+    // Reset player to position at start of stepping (like replay mode does)
+    selected = [...stepStartPosition];
   }
   draggingNpcIndex = null;
   draggingNpcOffset = null;
+  cursorLocation = null;
   drawWave();
 }
 
@@ -843,6 +1145,7 @@ export type LoSListener = {
   onCanSaveReplayChanged: (canReplay: boolean) => void;
   onReplayTickChanged: (tick: number) => void;
   onFromWaveStartChanged: (fromWaveStart: boolean) => void;
+  onMantimayhem3Changed: (mantimayhem3: boolean) => void;
 };
 
 // currently, only one LoS listener is allowed.
@@ -874,7 +1177,7 @@ export function drawWave() {
   ctx.clearRect(0, 0, mapElement.width, mapElement.height);
 
   const scale = (p: number) => p * size;
-  function drawManticorePattern(pattern: number[], x: number, y: number) {
+  function drawManticorePattern(pattern: number[], x: number, y: number, isTransparent: boolean = false) {
     pattern.forEach((colorIndex, index) => {
       if (!ctx) {
         return;
@@ -882,9 +1185,15 @@ export function drawWave() {
       const color = MANTICORE_ATTACKS[colorIndex];
       ctx.strokeStyle = color;
       ctx.fillStyle = color;
+      if (isTransparent) {
+        ctx.globalAlpha = 0.35;
+      }
       ctx.beginPath();
       ctx.arc(scale(x + 2.5), scale(y - index + 0.5), size / 2, 0, Math.PI * 2);
       ctx.fill();
+      if (isTransparent) {
+        ctx.globalAlpha = 1;
+      }
     });
   }
 
@@ -1047,7 +1356,7 @@ export function drawWave() {
       -s * size
     );
     // draw image for anything that's not a player
-    if (images[mode]) {
+    if (images[mode] && mode !== 0 && mode !== MODE_PLAYER) {
       ctx.drawImage(
         images[mode]!,
         cursorLocation[0] * size,
@@ -1057,8 +1366,12 @@ export function drawWave() {
       );
     }
     if (mode === MANTICORE && modeExtra) {
-      const colorPattern = MANTICORE_PATTERNS[modeExtra];
-      drawManticorePattern(colorPattern, cursorLocation[0], cursorLocation[1]);
+      // Don't draw orbs for unknown manticores
+      if (modeExtra !== "u") {
+        const colorPattern = MANTICORE_PATTERNS[modeExtra];
+        const isUncharged = modeExtra.startsWith("u");
+        drawManticorePattern(colorPattern, cursorLocation[0], cursorLocation[1], isUncharged);
+      }
     }
     ctx.globalAlpha = 1;
   }
@@ -1117,11 +1430,11 @@ export function drawWave() {
   for (var i = 0; i < mobs.length; i++) {
     const [x, y, t] = mobs[i];
     const s = SIZE[mobs[i][2]];
-    if (!t) {
-      // player
+    // Skip player (type 0) - should never be in mobs array
+    if (!t || t === 0 || t === MODE_PLAYER) {
       continue;
     }
-    if (images[t]) {
+    if (images[t] && t !== 0) {
       ctx.drawImage(
         images[t]!,
         x * size,
@@ -1131,9 +1444,11 @@ export function drawWave() {
       );
     }
     const mobExtra = mobs[i][6];
-    if (t === MANTICORE && mobExtra !== null) {
+    if (t === MANTICORE && mobExtra && mobExtra !== "u") {
       const colorPattern = MANTICORE_PATTERNS[mobExtra];
-      drawManticorePattern(colorPattern, x, y);
+      // Check if uncharged by looking at the extra string
+      const isUncharged = mobExtra.startsWith('u');
+      drawManticorePattern(colorPattern, x, y, isUncharged);
     }
 
     // only odd-size npcs are healable for now
