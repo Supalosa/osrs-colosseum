@@ -59,6 +59,8 @@ const MANTICORE_PATTERNS: { [patternName: string]: number[] } = {
 };
 const MANTICORE_DELAY = 5;
 const MANTICORE_CHARGE_TIME = 10;
+const MM3_PATTERNS = ["r", "m", "Mrm", "Mmr", "rMm", "mMr"];
+const STANDARD_PATTERNS = ["r", "m"];
 
 const MINOTAUR = 5;
 const MINOTAUR_HEAL_RANGE = 7;
@@ -858,16 +860,11 @@ function getEstablishedManticoreStyle(excludeIndices: number[]): string | null {
     if (mobs[i][2] === MANTICORE && !excludeIndices.includes(i)) {
       const mob = mobs[i];
       const currentExtra = mob[6];
-      const originalExtra = mob[7];
       
       const isChargedOrCharging = currentExtra && !currentExtra.startsWith('u');
       
       if (isChargedOrCharging) {
-        if (originalExtra && originalExtra.includes('u')) {
-          return currentExtra;
-        } else if (!originalExtra?.includes('u')) {
-          return currentExtra;
-        }
+        return currentExtra;
       }
     }
   }
@@ -915,12 +912,8 @@ function determineManticoreStyles(manticoresStartingToCharge: number[], establis
         chargedStyle = groupSelectedStyle;
       } else {
         if (!randomStyleForUnknowns) {
-          if (mantimayhem3) {
-            const mm3Patterns = ["r", "m", "Mrm", "Mmr", "rMm", "mMr"];
-            randomStyleForUnknowns = mm3Patterns[Math.floor(Math.random() * mm3Patterns.length)] as MobExtra;
-          } else {
-            randomStyleForUnknowns = (Math.random() < 0.5 ? "r" : "m") as MobExtra;
-          }
+          const patterns = mantimayhem3 ? MM3_PATTERNS : STANDARD_PATTERNS;
+          randomStyleForUnknowns = patterns[Math.floor(Math.random() * patterns.length)] as MobExtra;
         }
         chargedStyle = randomStyleForUnknowns;
       }
