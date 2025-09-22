@@ -3,37 +3,43 @@ import { blockedTileRanges } from "./constants";
 
 import { canBounce } from "./venator";
 
-const SIZE = [1, 1, 3, 2, 3, 3, 3];
-const RANGE = [10, 10, 15, 1, 15, 1, 15];
-const CD = [0, 5, 5, 5, 10, 5, 5];
-const img_sources = [
-  "player.png",
-  "serpent_shaman.png", // 10 range
-  "javelin_colossus.png", // 15 range
-  "jaguar_warrior.png",
-  "manticore.png",
-  "minotaur.png",
-  "shockwave_colossus.png",
-];
+const NPC_TYPES = {
+  PLAYER: 0,
+  SERPENT_SHAMAN: 1,
+  JAVELIN_COLOSSUS: 2,
+  JAGUAR_WARRIOR: 3,
+  MANTICORE: 4,
+  MINOTAUR: 5,
+  SHOCKWAVE_COLOSSUS: 6,
+}
+
+const NPC_INFO = {
+  [NPC_TYPES.PLAYER]: { size: 1, range: 10, cd: 0, npcid: 0, img: "player.png", color: "red" },
+  [NPC_TYPES.SERPENT_SHAMAN]: { size: 1, range: 10, cd: 5, npcid: 1, img: "serpent_shaman.png", color: "cyan" },
+  [NPC_TYPES.JAVELIN_COLOSSUS]: { size: 3, range: 15, cd: 5, npcid: 2, img: "javelin_colossus.png", color: "lime" },
+  [NPC_TYPES.JAGUAR_WARRIOR]: { size: 2, range: 1, cd: 5, npcid: 3, img: "jaguar_warrior.png", color: "orange" },
+  [NPC_TYPES.MANTICORE]: { size: 3, range: 15, cd: 10, npcid: 4, img: "manticore.png", color: "purple" },
+  [NPC_TYPES.MINOTAUR]: { size: 3, range: 1, cd: 5, npcid: 5, img: "minotaur.png", color: "brown" },
+  [NPC_TYPES.SHOCKWAVE_COLOSSUS]: { size: 3, range: 15, cd: 5, npcid: 6, img: "shockwave_colossus.png", color: "blue" },
+};
+
 
 const images: (HTMLImageElement | null)[] = [];
-img_sources.forEach((src, i) => {
-  if (src.length === 0) {
+Object.values(NPC_INFO).forEach(({ img }, i) => {
+  if (img.length === 0) {
     return null;
   }
   const image = new Image();
-  image.src = src;
+  image.src = img;
   image.onload = () => {
     images[i] = image;
     drawWave();
   };
 });
 
-const colors = ["red", "cyan", "lime", "orange", "purple", "brown", "blue"];
-
 const MODE_PLAYER = 0;
 
-export const MANTICORE = 4;
+export const MANTICORE = NPC_TYPES.MANTICORE;
 const MANTICORE_ATTACKS = ["lime", "blue", "red"];
 
 // Base patterns for manticore attacks
@@ -149,12 +155,12 @@ let mantimayhem3: boolean = false;
 let showVenatorBounce: boolean = false;
 
 var ctx: CanvasRenderingContext2D | null = null;
-var size = 20;
+var TILE_SIZE = 20;
 const MAP_WIDTH = 34;
 const MAP_HEIGHT = 34;
 const TICKER_WIDTH = 9;
-const CANVAS_WIDTH = size * MAP_WIDTH + TICKER_WIDTH * size;
-const CANVAS_HEIGHT = size * MAP_HEIGHT;
+const CANVAS_WIDTH = TILE_SIZE * MAP_WIDTH + TICKER_WIDTH * TILE_SIZE;
+const CANVAS_HEIGHT = TILE_SIZE * MAP_HEIGHT;
 
 export const setFromWaveStart = (val: boolean) => {
   fromWaveStart = val;
@@ -185,14 +191,14 @@ export const onCanvasMouseDown = function (e: React.MouseEvent) {
   var x = e.nativeEvent.offsetX;
   var y = e.nativeEvent.offsetY;
   var selectedNpcIndex = null;
-  x = Math.floor(x / size);
-  y = Math.floor(y / size);
+  x = Math.floor(x / TILE_SIZE);
+  y = Math.floor(y / TILE_SIZE);
   if (x < MAP_WIDTH) {
     if (replay) {
       stopReplay();
     }
     for (var i = 0; i < mobs.length; i++) {
-      if (doesCollide(x, y, 1, mobs[i][0], mobs[i][1], SIZE[mobs[i][2]])) {
+      if (doesCollide(x, y, 1, mobs[i][0], mobs[i][1], NPC_INFO[mobs[i][2]].size)) {
         selectedNpcIndex = i;
         break;
       }
@@ -222,8 +228,8 @@ export const onCanvasMouseDown = function (e: React.MouseEvent) {
 export const onCanvasMouseUp = function (e: React.MouseEvent) {
   var x = e.nativeEvent.offsetX;
   var y = e.nativeEvent.offsetY;
-  x = Math.floor(x / size);
-  y = Math.floor(y / size);
+  x = Math.floor(x / TILE_SIZE);
+  y = Math.floor(y / TILE_SIZE);
   if (tapeSelectionRange?.length === 1) {
     if (x >= MAP_WIDTH && x <= CANVAS_WIDTH && y >= 0 && y <= CANVAS_HEIGHT) {
       const endY = Math.min(y + 1, tape.length);
@@ -238,11 +244,11 @@ export const onCanvasMouseUp = function (e: React.MouseEvent) {
 export const onCanvasDblClick = function (e: React.MouseEvent) {
   var x = e.nativeEvent.offsetX;
   var y = e.nativeEvent.offsetY;
-  x = Math.floor(x / size);
-  y = Math.floor(y / size);
+  x = Math.floor(x / TILE_SIZE);
+  y = Math.floor(y / TILE_SIZE);
   if (x < MAP_WIDTH) {
     for (var i = 0; i < mobs.length; i++) {
-      if (doesCollide(x, y, 1, mobs[i][0], mobs[i][1], SIZE[mobs[i][2]])) {
+      if (doesCollide(x, y, 1, mobs[i][0], mobs[i][1], NPC_INFO[mobs[i][2]].size)) {
         removeMob(i);
         break;
       }
@@ -255,16 +261,16 @@ export const onCanvasRightClick = function (e: React.MouseEvent) {
   e.preventDefault();
   var x = e.nativeEvent.offsetX;
   var y = e.nativeEvent.offsetY;
-  x = Math.floor(x / size);
-  y = Math.floor(y / size);
+  x = Math.floor(x / TILE_SIZE);
+  y = Math.floor(y / TILE_SIZE);
   if (x < MAP_WIDTH) {
     for (var i = 0; i < mobs.length; i++) {
-      if (doesCollide(x, y, 1, mobs[i][0], mobs[i][1], SIZE[mobs[i][2]])) {
+      if (doesCollide(x, y, 1, mobs[i][0], mobs[i][1], NPC_INFO[mobs[i][2]].size)) {
         // Only toggle charged state for manticores
         if (mobs[i][2] === MANTICORE) {
           const currentExtra = mobs[i][6];
           const originalExtra = mobs[i][7];
-          
+
           // Don't toggle unknown manticores
           if (currentExtra === null || originalExtra === "u") {
             break;
@@ -315,8 +321,8 @@ export const onCanvasMouseMove = function (e: React.MouseEvent) {
   // dragging
   var x = e.nativeEvent.offsetX;
   var y = e.nativeEvent.offsetY;
-  x = Math.floor(x / size);
-  y = Math.floor(y / size);
+  x = Math.floor(x / TILE_SIZE);
+  y = Math.floor(y / TILE_SIZE);
   if (x < 0 || x >= MAP_WIDTH || y < 0 || y > MAP_HEIGHT) {
     return;
   }
@@ -325,7 +331,7 @@ export const onCanvasMouseMove = function (e: React.MouseEvent) {
   var wasMousedOverNpc = mousedOverNpc;
   mousedOverNpc = null;
   for (var i = 0; i < mobs.length; i++) {
-    if (doesCollide(x, y, 1, mobs[i][0], mobs[i][1], SIZE[mobs[i][2]])) {
+    if (doesCollide(x, y, 1, mobs[i][0], mobs[i][1], NPC_INFO[mobs[i][2]].size)) {
       mouseIcon = "move";
       mousedOverNpc = i;
       break;
@@ -386,21 +392,21 @@ function loadSpawns() {
       var ly = parseInt(spawn[i].slice(2, 4));
       var lm = parseInt(spawn[i].slice(4, 5));
       var extra = spawn[i].slice(5) || null;
-      
+
       const newMob: Mob = [lx, ly, lm, lx, ly, 0, extra as MobExtra];
-      
+
       // Store original extra for manticores
       if (lm === MANTICORE && extra) {
         newMob.push(extra as MobExtra);
       }
-      
+
       mobs.push(newMob);
     }
   }
   sortMobs();
   const hashParts = parent.location.hash?.split("_");
   const playerCoords = hashParts?.[0];
-  
+
   // Check for ws and mm3 flags
   if (hashParts?.includes("ws")) {
     setFromWaveStart(true);
@@ -421,10 +427,10 @@ function loadSpawns() {
       return Array(runLength).fill(coordinate);
     };
     const positions = hash.flatMap((section) => decodeSection(section));
-    
+
     // Check if this is a simple spawn URL (single position) or a replay URL (multiple positions or run-length encoded)
     const isReplay = positions.length > 1 || hash.some(section => section.includes("x"));
-    
+
     if (isReplay) {
       // This is a replay URL - start the replay
       replay = positions;
@@ -476,18 +482,18 @@ const getMobSpec = (mob: Mob): MobSpec => {
 export function copySpawnURL() {
   const mobSpecs = mobs.filter((mob) => mob[2] > MODE_PLAYER).map(getMobSpec);
   var url = getSpawnUrl(mobSpecs);
-  
+
   // Check if player has been moved from starting position
   const playerMoved = selected[0] !== b5Tile[0] || selected[1] !== b5Tile[1];
-  
+
   // Build hash fragments
   const hashParts = [];
-  
+
   // Add player position if moved
   if (playerMoved) {
     hashParts.push(encodeCoordinate(selected));
   }
-  
+
   // Add flags if enabled  
   if (fromWaveStart) {
     hashParts.push("_ws");
@@ -495,12 +501,12 @@ export function copySpawnURL() {
   if (mantimayhem3) {
     hashParts.push("_mm3");
   }
-  
+
   // Add hash if there are any parts
   if (hashParts.length > 0) {
     url = url.concat("#" + hashParts.join(""));
   }
-  
+
   copyQ(url);
   alert("Spawn URL Copied!");
 }
@@ -730,7 +736,7 @@ function legalPosition(x: number, y: number, size: number, index: number) {
     if (mobs[i][2] < 8) {
       if (
         i != index &&
-        doesCollide(x, y, size, mobs[i][0], mobs[i][1], SIZE[mobs[i][2]])
+        doesCollide(x, y, size, mobs[i][0], mobs[i][1], NPC_INFO[mobs[i][2]].size)
       ) {
         return false;
       }
@@ -766,12 +772,12 @@ export function place() {
         0,
         modeExtra,
       ];
-      
+
       // Store original extra for manticores
       if (mode === MANTICORE && modeExtra) {
         newMob.push(modeExtra);
       }
-      
+
       mobs.push(newMob);
       sortMobs();
       // Only reset mode after successfully placing an NPC
@@ -807,9 +813,8 @@ function moveMobs(canMove: boolean, canGainLos: boolean) {
       var x = mob[0];
       var y = mob[1];
       var t = mob[2];
-      var s = SIZE[t];
-      var r = RANGE[t];
-      
+      const { size: s, range: r } = NPC_INFO[t];
+
       if (canMove && !(canGainLos && hasLOS(x, y, selected[0], selected[1], s, r, true))) {
         var dx = x + Math.sign(selected[0] - x);
         var dy = y + Math.sign(selected[1] - y);
@@ -845,35 +850,35 @@ function handleManticoreCharging(canAttack: boolean) {
       const currentExtra = mob[6];
       const x = mob[0];
       const y = mob[1];
-      
+
       const isUncharged = currentExtra?.startsWith('u') ?? false;
-      
-      if (isUncharged && canAttack && hasLOS(x, y, selected[0], selected[1], SIZE[MANTICORE], RANGE[MANTICORE], true)) {
+
+      if (isUncharged && canAttack && hasLOS(x, y, selected[0], selected[1], NPC_INFO[MANTICORE].size, NPC_INFO[MANTICORE].range, true)) {
         manticoresStartingToCharge.push(i);
       }
     }
   }
-  
+
   if (manticoresStartingToCharge.length === 0) {
     return;
   }
-  
+
   // Check if there's already a charged/charging manticore to inherit from
   let establishedStyle: string | null = null;
   for (var i = 0; i < mobs.length; i++) {
     if (mobs[i][2] === MANTICORE && !manticoresStartingToCharge.includes(i)) {
       const mob = mobs[i];
       const currentExtra = mob[6];
-      
+
       const isChargedOrCharging = currentExtra && !currentExtra.startsWith('u');
-      
+
       if (isChargedOrCharging) {
         establishedStyle = currentExtra;
         break;
       }
     }
   }
-  
+
   // Determine styles for the charging manticores
   let knownStyles: string[] = [];
   if (!establishedStyle) {
@@ -887,21 +892,21 @@ function handleManticoreCharging(canAttack: boolean) {
       }
     }
   }
-  
+
   let groupSelectedStyle: MobExtra | null = null;
   if (knownStyles.length > 1) {
     groupSelectedStyle = knownStyles[Math.floor(Math.random() * knownStyles.length)] as MobExtra;
   }
 
   let randomStyleForUnknowns: MobExtra | null = null;
-  
+
   for (const idx of manticoresStartingToCharge) {
     const mob = mobs[idx];
     const originalExtra = mob[7];
     const currentExtra = mob[6];
-    
+
     let chargedStyle: MobExtra = null;
-    
+
     if (establishedStyle) {
       chargedStyle = establishedStyle as MobExtra;
     } else if (groupSelectedStyle) {
@@ -921,14 +926,14 @@ function handleManticoreCharging(canAttack: boolean) {
         chargedStyle = randomStyleForUnknowns;
       }
     }
-    
+
     if (chargedStyle) {
       mob[6] = chargedStyle;
       mob[5] = MANTICORE_CHARGE_TIME;
     }
-    
-    if (originalExtra === "u" && chargedStyle && 
-        !establishedStyle && knownStyles.length === 0) {
+
+    if (originalExtra === "u" && chargedStyle &&
+      !establishedStyle && knownStyles.length === 0) {
       mob[7] = ("u" + chargedStyle) as MobExtra;
     }
   }
@@ -939,32 +944,31 @@ function handleManticoreCharging(canAttack: boolean) {
 function processAttacks(canAttack: boolean): { line: TapeEntry, manticoreFired: boolean } {
   let line: TapeEntry = [];
   let manticoreFiredThisTick = false;
-  
+
   for (var i = 0; i < mobs.length; i++) {
     if (mobs[i][2] < 8) {
       var mob = mobs[i];
       var x = mob[0];
       var y = mob[1];
       var t = mob[2];
-      var s = SIZE[t];
-      var r = RANGE[t];
+      const { size: s, range: r } = NPC_INFO[t];
       var attacked = 0;
-      
+
       if (canAttack && hasLOS(x, y, selected[0], selected[1], s, r, true)) {
         if (mob[2] === MANTICORE) {
           const currentExtra = mob[6];
           const isCharged = currentExtra && !currentExtra.startsWith('u');
-          
+
           if (isCharged && mob[5] <= 0 && !manticoreFiredThisTick) {
             manticoreTicksRemaining[i] = 3;
             attacked = 1;
-            mob[5] = CD[t];
+            mob[5] = NPC_INFO[t].cd;
             manticoreFiredThisTick = true;
           }
         } else {
           if (mob[5] <= 0) {
             attacked = 1;
-            mob[5] = CD[t];
+            mob[5] = NPC_INFO[t].cd;
           }
         }
       }
@@ -972,7 +976,7 @@ function processAttacks(canAttack: boolean): { line: TapeEntry, manticoreFired: 
       line.push(value);
     }
   }
-  
+
   return { line, manticoreFired: manticoreFiredThisTick };
 }
 
@@ -997,30 +1001,30 @@ export function step(draw: boolean = false) {
   if (tickCount === 0 && !replay) {
     stepStartPosition = [...selected];
   }
-  
+
   advanceReplay();
-  
+
   if (mode == 0 && mobs.length > 0) {
     const canAttack = fromWaveStart ? tickCount >= DELAY_FIRST_ATTACK_TICKS : true;
     const canMove = fromWaveStart ? tickCount > 0 : true;
     const canGainLos = fromWaveStart ? tickCount > 1 : true;
-    
+
     // Move all mobs
     moveMobs(canMove, canGainLos);
-    
+
     // Handle manticore charging
     handleManticoreCharging(canAttack);
-    
+
     // Process attacks
     const { line, manticoreFired } = processAttacks(canAttack);
-    
+
     // Record manticore orb progression in attack tape
     recordManticoreOrbSequence(line);
-    
+
     if (manticoreFired) {
       delayAllReadyMantis();
     }
-    
+
     // Record this tick's player position and mob actions to history
     playerTape.push([selected[0], selected[1]]);
     tape.push(line);
@@ -1072,7 +1076,7 @@ export function reset() {
     mobs[i][0] = mobs[i][3];
     mobs[i][1] = mobs[i][4];
     mobs[i][5] = 0;
-    
+
     // Reset manticores to their original state
     if (mobs[i][2] === MANTICORE) {
       const originalExtra = mobs[i][7];
@@ -1133,7 +1137,7 @@ function drawLOS(
     var y2 = Math.floor(i / MAP_HEIGHT);
 
     if (hasLOS(x, y, x2, y2, s, r, isNPC)) {
-      ctx.fillRect(x2 * size, y2 * size, size, size);
+      ctx.fillRect(x2 * TILE_SIZE, y2 * TILE_SIZE, TILE_SIZE, TILE_SIZE);
     }
   }
   ctx.globalAlpha = 1;
@@ -1176,7 +1180,7 @@ export function drawWave() {
   ctx.globalAlpha = 1;
   ctx.clearRect(0, 0, mapElement.width, mapElement.height);
 
-  const scale = (p: number) => p * size;
+  const scale = (p: number) => p * TILE_SIZE;
   function drawManticorePattern(pattern: number[], x: number, y: number, isTransparent: boolean = false) {
     pattern.forEach((colorIndex, index) => {
       if (!ctx) {
@@ -1189,7 +1193,7 @@ export function drawWave() {
         ctx.globalAlpha = 0.35;
       }
       ctx.beginPath();
-      ctx.arc(scale(x + 2.5), scale(y - index + 0.5), size / 2, 0, Math.PI * 2);
+      ctx.arc(scale(x + 2.5), scale(y - index + 0.5), TILE_SIZE / 2, 0, Math.PI * 2);
       ctx.fill();
       if (isTransparent) {
         ctx.globalAlpha = 1;
@@ -1202,7 +1206,7 @@ export function drawWave() {
     const x = i % MAP_WIDTH;
     const y = Math.floor(i / MAP_WIDTH);
     ctx.fillStyle = (i + (y % 2)) % 2 ? "#fff" : checkerColor;
-    ctx.fillRect(x * size, y * size, size, size);
+    ctx.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
   }
   // colosseum border
   ctx.fillStyle = "#000";
@@ -1225,10 +1229,10 @@ export function drawWave() {
   for (var i = 0; i < pillars.length; i++) {
     if (filters[i]) {
       ctx.fillRect(
-        pillars[i][0] * size,
-        (pillars[i][1] + 1) * size,
-        3 * size,
-        -3 * size
+        pillars[i][0] * TILE_SIZE,
+        (pillars[i][1] + 1) * TILE_SIZE,
+        3 * TILE_SIZE,
+        -3 * TILE_SIZE
       );
     }
   }
@@ -1240,32 +1244,30 @@ export function drawWave() {
   ctx.fillStyle = "#999";
   for (var i = 0; i < spawns.length; i++) {
     ctx.fillRect(
-      spawns[i][0] * size,
-      (spawns[i][1] + 1) * size,
-      3 * size,
-      -3 * size
+      spawns[i][0] * TILE_SIZE,
+      (spawns[i][1] + 1) * TILE_SIZE,
+      3 * TILE_SIZE,
+      -3 * TILE_SIZE
     );
   }
   ctx.globalAlpha = 1;
   ctx.fillStyle = "#9F9";
-  ctx.fillRect(scale(b5Tile[0]), scale(b5Tile[1]), size, size);
+  ctx.fillRect(scale(b5Tile[0]), scale(b5Tile[1]), TILE_SIZE, TILE_SIZE);
   ctx.globalAlpha = 1;
   //mobs
   for (var i = 0; i < mobs.length; i++) {
     var x = mobs[i][0];
     var y = mobs[i][1];
     const t = mobs[i][2];
-    var s = SIZE[t];
-    var r = RANGE[t];
-    var c = colors[t];
+    var { size: s, range: r, color: c } = NPC_INFO[t];
     ctx.fillStyle = ctx.strokeStyle = c;
     if (t < 8) {
-      ctx.fillRect(x * size, (y + 1) * size, 1 * size, -1 * size);
-      ctx.strokeRect(x * size + 1, (y + 1) * size - 1, s * size, -s * size);
+      ctx.fillRect(x * TILE_SIZE, (y + 1) * TILE_SIZE, 1 * TILE_SIZE, -1 * TILE_SIZE);
+      ctx.strokeRect(x * TILE_SIZE + 1, (y + 1) * TILE_SIZE - 1, s * TILE_SIZE, -s * TILE_SIZE);
     }
     if (mode == 0 && hasLOS(x, y, selected[0], selected[1], s, r, true)) {
       ctx.fillStyle = "black";
-      ctx.fillRect(x * size, (y + 1) * size, (1 * size) / 4, (-1 * size) / 4);
+      ctx.fillRect(x * TILE_SIZE, (y + 1) * TILE_SIZE, (1 * TILE_SIZE) / 4, (-1 * TILE_SIZE) / 4);
     }
   }
   if (draggingNpcIndex !== null) {
@@ -1274,10 +1276,10 @@ export function drawWave() {
     drawLOS(
       mobs[draggingNpcIndex][0],
       mobs[draggingNpcIndex][1],
-      SIZE[t],
-      RANGE[t],
+      NPC_INFO[t].size,
+      NPC_INFO[t].range,
       t > 0,
-      colors[t]
+      NPC_INFO[t].color
     );
     // draw minotaur line-of-sight (from center tile as if it were a player)
     if (t === MINOTAUR) {
@@ -1292,9 +1294,8 @@ export function drawWave() {
     }
   } else if (cursorLocation) {
     // currently placing an NPC, draw its LOS
-    var s = SIZE[mode];
-    var r = RANGE[mode];
-    drawLOS(cursorLocation[0], cursorLocation[1], s, r, mode > 0, colors[mode]);
+    var { size: s, range: r, color: c } = NPC_INFO[mode];
+    drawLOS(cursorLocation[0], cursorLocation[1], s, r, mode > 0, c);
 
     // draw minotaur line-of-sight (from center tile as if it were a player)
     if (mode === MINOTAUR) {
@@ -1309,60 +1310,56 @@ export function drawWave() {
     }
   }
 
-  var c = colors[0];
-  var s = SIZE[0];
-  var r = RANGE[0];
+  var { size: s, range: r, color: c } = NPC_INFO[NPC_TYPES.PLAYER];
 
   // draw player
   ctx.fillStyle = ctx.strokeStyle = c;
   ctx.fillRect(
-    selected[0] * size,
-    (selected[1] + 1) * size,
-    1 * size,
-    -1 * size
+    selected[0] * TILE_SIZE,
+    (selected[1] + 1) * TILE_SIZE,
+    1 * TILE_SIZE,
+    -1 * TILE_SIZE
   );
   ctx.strokeRect(
-    selected[0] * size,
-    (selected[1] + 1) * size,
-    s * size,
-    -s * size
+    selected[0] * TILE_SIZE,
+    (selected[1] + 1) * TILE_SIZE,
+    s * TILE_SIZE,
+    -s * TILE_SIZE
   );
   if (images[0]) {
     ctx.drawImage(
       images[0]!,
-      selected[0] * size,
-      (selected[1] - s + 1) * size,
-      SIZE[0] * size,
-      SIZE[0] * size
+      selected[0] * TILE_SIZE,
+      (selected[1] - s + 1) * TILE_SIZE,
+      s * TILE_SIZE,
+      s * TILE_SIZE
     );
   }
 
   if (cursorLocation) {
-    var c = colors[mode];
-    var s = SIZE[mode];
-    var r = RANGE[mode];
+    var { size: s, range: r, color: c } = NPC_INFO[mode];
     ctx.globalAlpha = 0.5;
     ctx.fillStyle = ctx.strokeStyle = c;
     ctx.fillRect(
-      cursorLocation[0] * size,
-      (cursorLocation[1] + 1) * size,
-      1 * size,
-      -1 * size
+      cursorLocation[0] * TILE_SIZE,
+      (cursorLocation[1] + 1) * TILE_SIZE,
+      1 * TILE_SIZE,
+      -1 * TILE_SIZE
     );
     ctx.strokeRect(
-      cursorLocation[0] * size,
-      (cursorLocation[1] + 1) * size,
-      s * size,
-      -s * size
+      cursorLocation[0] * TILE_SIZE,
+      (cursorLocation[1] + 1) * TILE_SIZE,
+      s * TILE_SIZE,
+      -s * TILE_SIZE
     );
     // draw image for anything that's not a player
     if (images[mode] && mode !== 0 && mode !== MODE_PLAYER) {
       ctx.drawImage(
         images[mode]!,
-        cursorLocation[0] * size,
-        (cursorLocation[1] - s + 1) * size,
-        SIZE[mode] * size,
-        SIZE[mode] * size
+        cursorLocation[0] * TILE_SIZE,
+        (cursorLocation[1] - s + 1) * TILE_SIZE,
+        s * TILE_SIZE,
+        s * TILE_SIZE
       );
     }
     if (mode === MANTICORE && modeExtra) {
@@ -1376,31 +1373,31 @@ export function drawWave() {
     ctx.globalAlpha = 1;
   }
   // ticker tape
-  var offset = MAP_WIDTH * size;
-  const tickerStartY = (idx: number) => size * idx;
+  var offset = MAP_WIDTH * TILE_SIZE;
+  const tickerStartY = (idx: number) => TILE_SIZE * idx;
   for (var i = 0; i < tape.length; i++) {
     if (fromWaveStart && i < DELAY_FIRST_ATTACK_TICKS) {
       ctx.fillStyle = i % 2 == 0 ? "#666" : "#777";
     } else {
       ctx.fillStyle = i % 2 == 0 ? "#ddd" : "#eee";
     }
-    ctx.fillRect(offset, size * i, size * TICKER_WIDTH, size);
+    ctx.fillRect(offset, TILE_SIZE * i, TILE_SIZE * TICKER_WIDTH, TILE_SIZE);
     for (var j = 0; j < tape[i].length; j++) {
       const value = tape[i][j];
       var attacked = value & 0xff;
       var t = mobs[j][2];
       if (t > 0 && attacked) {
-        ctx.fillStyle = colors[t];
-        ctx.fillRect(offset + size * j, tickerStartY(i), size, size);
+        ctx.fillStyle = NPC_INFO[t].color;
+        ctx.fillRect(offset + TILE_SIZE * j, tickerStartY(i), TILE_SIZE, TILE_SIZE);
       }
       if (attacked && t === MANTICORE) {
         const pattern = (value >> 8) & 0xff;
         ctx.fillStyle = MANTICORE_ATTACKS[pattern];
         ctx.beginPath();
         ctx.arc(
-          offset + size * (j + 0.5),
-          size * (i + 0.5),
-          size / 2,
+          offset + TILE_SIZE * (j + 0.5),
+          TILE_SIZE * (i + 0.5),
+          TILE_SIZE / 2,
           0,
           Math.PI * 2
         );
@@ -1420,8 +1417,8 @@ export function drawWave() {
     ctx.fillRect(
       offset,
       tickerStartY(tapeStartY),
-      size * TICKER_WIDTH,
-      (tapeEndY - tapeStartY) * size
+      TILE_SIZE * TICKER_WIDTH,
+      (tapeEndY - tapeStartY) * TILE_SIZE
     );
     ctx.globalAlpha = 1;
   }
@@ -1429,7 +1426,7 @@ export function drawWave() {
   const minotaurs = mobs.filter((m) => m[2] === MINOTAUR);
   for (var i = 0; i < mobs.length; i++) {
     const [x, y, t] = mobs[i];
-    const s = SIZE[mobs[i][2]];
+    const s = NPC_INFO[mobs[i][2]].size;
     // Skip player (type 0) - should never be in mobs array
     if (!t || t === 0 || t === MODE_PLAYER) {
       continue;
@@ -1437,10 +1434,10 @@ export function drawWave() {
     if (images[t] && t !== 0) {
       ctx.drawImage(
         images[t]!,
-        x * size,
-        (y - s + 1) * size,
-        s * size,
-        s * size
+        x * TILE_SIZE,
+        (y - s + 1) * TILE_SIZE,
+        s * TILE_SIZE,
+        s * TILE_SIZE
       );
     }
     const mobExtra = mobs[i][6];
@@ -1469,8 +1466,8 @@ export function drawWave() {
         ) {
           ctx.strokeStyle = MINOTAUR_HEAL_COLOR;
           ctx.beginPath();
-          ctx.moveTo((mX + 1.5) * size, (mY - 0.5) * size);
-          ctx.lineTo((x + s / 2) * size, (y - s / 2 + 1) * size);
+          ctx.moveTo((mX + 1.5) * TILE_SIZE, (mY - 0.5) * TILE_SIZE);
+          ctx.lineTo((x + s / 2) * TILE_SIZE, (y - s / 2 + 1) * TILE_SIZE);
           ctx.stroke();
         }
       }
@@ -1482,8 +1479,8 @@ export function drawWave() {
       ctx.strokeStyle = "#ff69b4";
       ctx.lineWidth = 5;
       const [sX, sY, sT] = mobs[mousedOverNpc];
-      if (canBounce(sX, sY, SIZE[sT], mobs[i][0], mobs[i][1], s)) {
-        ctx.strokeRect(x * size, (y - s + 1) * size, size * s, size * s);
+      if (canBounce(sX, sY, NPC_INFO[sT].size, mobs[i][0], mobs[i][1], s)) {
+        ctx.strokeRect(x * TILE_SIZE, (y - s + 1) * TILE_SIZE, TILE_SIZE * s, TILE_SIZE * s);
       }
       ctx.lineWidth = 1;
     }
@@ -1493,9 +1490,9 @@ export function drawWave() {
   ctx.textAlign = "center";
   ctx.textBaseline = "top";
   ctx.fillStyle = "red";
-  ctx.fillText("North", (MAP_WIDTH / 2) * size, 4);
+  ctx.fillText("North", (MAP_WIDTH / 2) * TILE_SIZE, 4);
   ctx.fillStyle = "white";
-  ctx.fillText("South", (MAP_WIDTH / 2) * size, (MAP_HEIGHT - 1) * size + 4);
+  ctx.fillText("South", (MAP_WIDTH / 2) * TILE_SIZE, (MAP_HEIGHT - 1) * TILE_SIZE + 4);
 }
 
 function copyQ(val: string) {
