@@ -10,19 +10,25 @@ export const createMob = (
 ): MobSpec => [x, y, type, extra ?? null];
 
 export const checkMove = (
-  npc: Mob,
+  // note: this NPC gets MUTATED so it is expected not to be what is passed out of _getMobs()
+  mutableNpc: Mob,
   x: number,
   y: number,
   attacked: number | false = false
 ) => {
-  npc[0] = x;
-  npc[1] = y;
+  mutableNpc[0] = x;
+  mutableNpc[1] = y;
   if (!attacked) {
-    npc[5]--;
+    mutableNpc[5]--;
   } else {
-    npc[5] = attacked;
+    mutableNpc[5] = attacked;
   }
-  expect(_getMobs()).toContainEqual(npc);
+  expect(_getMobs()).toContainEqual(mutableNpc);
+};
+
+export const checkPosition = (npc: Mob, x: number, y: number) => {
+  expect(npc[0]).toBe(x);
+  expect(npc[1]).toBe(y);
 };
 
 export const checkIdleStep = (npc: Mob) => {
