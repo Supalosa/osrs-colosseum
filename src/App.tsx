@@ -77,7 +77,7 @@ function App() {
         role="tooltip"
       >
         {overlay && <div className="overlay">{overlay}</div>}
-        <img src={image} height="56" draggable="false" />
+        <img src={image} height="50" draggable="false" />
       </button>
     );
   };
@@ -111,7 +111,7 @@ function App() {
               mode={1}
               image="./serpent_shaman.png"
               borderColor="cyan"
-              tooltip="Place a Serpent Shaman by dragging onto the map."
+              tooltip="Place a Serpent Shaman by dragging onto the map (spawned at the start at the wave)"
             />
             <UnitButton
               mode={2}
@@ -160,6 +160,13 @@ function App() {
               image="./shockwave_colossus.png"
               borderColor="purple"
               tooltip="Place a Shockwave Colossus by dragging onto the map."
+            />
+            <UnitButton
+              mode={7}
+              overlay={<span style={{ fontSize: 16, fontWeight: 'bold' }}>+</span>}
+              image="./serpent_shaman.png"
+              borderColor="cyan"
+              tooltip="Place a Reinforcement Serpent Shaman. These &quot;wiggle&quot; differently from shamans spawned at the start of the wave."
             />
           </div>
           {/* this is the mantimayhem 3 units row that appear conditionally */}

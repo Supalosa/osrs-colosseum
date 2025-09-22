@@ -11,22 +11,25 @@ export const NPC_TYPES = {
   MANTICORE: 4,
   MINOTAUR: 5,
   SHOCKWAVE_COLOSSUS: 6,
+  REINFORCEMENT_SHAMAN: 7,
 }
 const NPC_TYPE_TO_NAME: Record<string, string> = {};
 Object.entries(NPC_TYPES).forEach(([name, id]) => {
   NPC_TYPE_TO_NAME[id] = name;
 });
 
+const _SHAMAN = { id: 1, size: 1, range: 10, cd: 5, img: "serpent_shaman.png", color: "cyan" };
 // note: 'id' is a typical ingame npc id, which is different from the type index for legacy reasons (e.g. to not
 // break old replay URLs)
 const NPC_INFO = {
   [NPC_TYPES.PLAYER]: { id: -1, size: 1, range: 10, cd: 0, img: "player.png", color: "red" },
-  [NPC_TYPES.SERPENT_SHAMAN]: { id: 1, size: 1, range: 10, cd: 5, img: "serpent_shaman.png", color: "cyan" },
+  [NPC_TYPES.SERPENT_SHAMAN]: _SHAMAN,
   [NPC_TYPES.JAVELIN_COLOSSUS]: { id: 2, size: 3, range: 15, cd: 5, img: "javelin_colossus.png", color: "lime" },
   [NPC_TYPES.JAGUAR_WARRIOR]: { id: 4, size: 2, range: 1, cd: 5, img: "jaguar_warrior.png", color: "orange" },
   [NPC_TYPES.MANTICORE]: { id: 0, size: 3, range: 15, cd: 10, img: "manticore.png", color: "purple" },
   [NPC_TYPES.MINOTAUR]: { id: 5, size: 3, range: 1, cd: 5, img: "minotaur.png", color: "brown" },
   [NPC_TYPES.SHOCKWAVE_COLOSSUS]: { id: 3, size: 3, range: 15, cd: 5, img: "shockwave_colossus.png", color: "blue" },
+  [NPC_TYPES.REINFORCEMENT_SHAMAN]: { ..._SHAMAN, id: 6 },
 };
 
 
@@ -228,7 +231,6 @@ export const onCanvasMouseDown = function (e: React.MouseEvent) {
     const tapeIndex = Math.floor(y);
     tapeSelectionRange = [tapeIndex];
   }
-  console.log(x, y);
   drawWave();
 };
 
