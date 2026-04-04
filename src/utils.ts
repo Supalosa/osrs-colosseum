@@ -48,7 +48,6 @@ export function record(
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     document.body.appendChild(a);
-    a.style = "display: none";
     a.href = url;
     a.download = "los-replay.webm";
     a.click();

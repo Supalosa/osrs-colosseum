@@ -2,7 +2,7 @@ import { Coordinates, Mob, MobExtra, MobSpec, ReplayData, TapeEntry } from "./ty
 import { blockedTileRanges } from "./constants";
 
 import { canBounce } from "./venator";
-import { Bounds, computeReplayBounds, convertMobSpecToMob, extendBounds, record } from "./utils";
+import { computeReplayBounds, convertMobSpecToMob, extendBounds, record } from "./utils";
 
 export const NPC_TYPES = {
   PLAYER: 0,
@@ -669,11 +669,6 @@ function decodeCoordinates(coords: number): Coordinates {
 
 export function togglePlayerLoS() {
   showPlayerLoS = !showPlayerLoS;
-  drawWave();
-}
-function toggleNS() {
-  mapElement?.classList.toggle("south");
-  degen = !degen;
   drawWave();
 }
 function isPillar(x: number, y: number) {
