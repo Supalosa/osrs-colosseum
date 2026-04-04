@@ -10,20 +10,34 @@ export const convertMobSpecToMob = (mobSpec: MobSpec): Mob => [
   mobSpec[3], // extra
 ];
 
-export function record(canvas: HTMLCanvasElement, onStep: (saveRecording: () => void) => void) {
+export function record(
+  canvas: HTMLCanvasElement,
+  onStep: (saveRecording: () => void) => void,
+) {
   const captureStream = canvas.captureStream();
-  const mediaRecorder = new MediaRecorder(captureStream, { mimeType: "video/webm; codecs=vp9" });
+  const mediaRecorder = new MediaRecorder(captureStream, {
+    mimeType: "video/webm; codecs=vp9",
+  });
+  const chunks: Blob[] = [];
   function step() {
+    let finished = false;
     onStep(() => {
+      finished = true;
       mediaRecorder.stop();
     });
-    setTimeout(step, 600);
+    if (!finished) {
+      setTimeout(step, 600);
+    }
   }
   mediaRecorder.ondataavailable = (e) => {
     if (e.data.size === 0) {
       return;
     }
-    const blob = new Blob([e.data], {
+    chunks.push(e.data);
+  };
+
+  mediaRecorder.onstop = () => {
+    const blob = new Blob(chunks, {
       type: "video/webm",
     });
     const url = URL.createObjectURL(blob);

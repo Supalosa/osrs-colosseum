@@ -170,6 +170,7 @@ export function exportReplay() {
   record(mapElement, (saveRecording) => {
      if (replayTick === null || !replay || replayTick >= replay.length) {
       replay = null;
+      replayTick = null;
       reset();
       saveRecording();
       // Would be nice to set the state back to the original here.
