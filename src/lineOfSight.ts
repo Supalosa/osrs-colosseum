@@ -2,7 +2,7 @@ import { Coordinates, Mob, MobExtra, MobSpec, ReplayData, TapeEntry } from "./ty
 import { blockedTileRanges } from "./constants";
 
 import { canBounce } from "./venator";
-import { convertMobSpecToMob, record } from "./utils";
+import { Bounds, computeReplayBounds, convertMobSpecToMob, extendBounds, record } from "./utils";
 
 export const NPC_TYPES = {
   PLAYER: 0,
@@ -160,14 +160,23 @@ export function exportReplay() {
     return;
   }
   const { playerPositions, mobSpecs } = getReplayData();
-  console.log("Exporting replay with mobSpecs:", mobSpecs, "and playerPositions:", playerPositions);
+  const rawBounds = computeReplayBounds({ playerPositions, mobSpecs }, NPC_INFO);
+  const bounds = extendBounds(rawBounds, 4, MAP_WIDTH, MAP_HEIGHT); // extend visible area by 4 tiles
+  const playAreaWidth = (bounds.maxX - bounds.minX + 1) * TILE_SIZE;
+  const playAreaHeight = (bounds.maxY - bounds.minY + 1) * TILE_SIZE;
+
+  const sourceContext = mapElement.getContext('2d')!;
+  const exportCanvas = document.createElement('canvas');
+  exportCanvas.width = playAreaWidth + TICKER_WIDTH * TILE_SIZE;
+  exportCanvas.height = playAreaHeight;
+
   reset();
   mobs = mobSpecs.map(convertMobSpecToMob);
   replay = playerPositions;
   replayTick = 0;
   selected = replay[0];
 
-  record(mapElement, () => {
+  record(exportCanvas, () => {
     if (replayTick === null || !replay) {
       return true;
     }
@@ -177,6 +186,12 @@ export function exportReplay() {
       return true;
     }
     step(true);
+    // copy relevant play area to exportCanvas
+    const imageContent = sourceContext.getImageData(bounds.minX * TILE_SIZE, bounds.minY * TILE_SIZE, playAreaWidth, playAreaHeight);
+    exportCanvas.getContext('2d')?.putImageData(imageContent, 0, 0);
+    // copy ticker to exportCanvas
+    const tickerContent = sourceContext.getImageData(TICKER_START_X, 0, TICKER_WIDTH * TILE_SIZE, CANVAS_HEIGHT);
+    exportCanvas.getContext('2d')?.putImageData(tickerContent, playAreaWidth, 0);
     return false;
   }, () => {
       replay = null;
@@ -200,7 +215,8 @@ var TILE_SIZE = 20;
 const MAP_WIDTH = 34;
 const MAP_HEIGHT = 34;
 const TICKER_WIDTH = 9;
-const CANVAS_WIDTH = TILE_SIZE * MAP_WIDTH + TICKER_WIDTH * TILE_SIZE;
+const TICKER_START_X = MAP_WIDTH * TILE_SIZE;
+const CANVAS_WIDTH = TICKER_START_X + TICKER_WIDTH * TILE_SIZE;
 const CANVAS_HEIGHT = TILE_SIZE * MAP_HEIGHT;
 
 export const setFromWaveStart = (val: boolean) => {
@@ -1443,7 +1459,7 @@ export function drawWave() {
     ctx.globalAlpha = 1;
   }
   // ticker tape
-  var offset = MAP_WIDTH * TILE_SIZE;
+  const offset = TICKER_START_X;
   const tickerStartY = (idx: number) => TILE_SIZE * idx;
   for (var i = 0; i < tape.length; i++) {
     if (fromWaveStart && i < DELAY_FIRST_ATTACK_TICKS) {
