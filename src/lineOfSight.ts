@@ -2,6 +2,7 @@ import { Coordinates, Mob, MobExtra, MobSpec, ReplayData, TapeEntry } from "./ty
 import { blockedTileRanges } from "./constants";
 
 import { canBounce } from "./venator";
+import { convertMobSpecToMob, record } from "./utils";
 
 export const NPC_TYPES = {
   PLAYER: 0,
@@ -160,7 +161,22 @@ export function exportReplay() {
   }
   const { playerPositions, mobSpecs } = getReplayData();
   console.log("Exporting replay with mobSpecs:", mobSpecs, "and playerPositions:", playerPositions);
-  mapElement.captureStream();
+  reset();
+  mobs = mobSpecs.map(convertMobSpecToMob);
+  replay = playerPositions;
+  replayTick = 0;
+  selected = replay[0];
+
+  record(mapElement, (saveRecording) => {
+     if (replayTick === null || !replay || replayTick >= replay.length) {
+      replay = null;
+      reset();
+      saveRecording();
+      // Would be nice to set the state back to the original here.
+      return;
+    }
+    step(true);
+  });
 }
 
 const MAX_EXPORT_LENGTH = 128;
@@ -412,8 +428,9 @@ export function decodeURL(location: URL): DecodeURLResult {
     const lx = parseInt(mobSpawns[i].slice(0, 2));
     const ly = parseInt(mobSpawns[i].slice(2, 4));
     const lm = parseInt(mobSpawns[i].slice(4, 5));
-    const extra = mobSpawns[i].slice(5) || null;
-    const newMob: Mob = [lx, ly, lm, lx, ly, 0, extra as MobExtra];
+    const extra = mobSpawns[i].slice(5) as MobExtra || null;
+    const mobSpec: MobSpec = [lx, ly, lm, extra];
+    const newMob = convertMobSpecToMob(mobSpec);
     // Store original extra for manticores
     if (lm === MANTICORE && extra) {
       newMob.push(extra as MobExtra);

@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 import { MANTICORE, decodeURL, getReplayURL, getSpawnUrl } from "../lineOfSight";
 import { createMob } from "./utils";
 import { Mob, MobSpec, ReplayData } from "../types";
+import { convertMobSpecToMob } from "../utils";
 
 describe("url tests", () => {
   test("empty spawn url", () => {
@@ -177,7 +178,6 @@ describe("url tests", () => {
   });
 
   describe("codec symmetry tests", () => {
-    const addMobFields = (mobSpec: MobSpec): Mob => [mobSpec[0], mobSpec[1], mobSpec[2], mobSpec[0], mobSpec[1], 0, mobSpec[3]];
     test("test 1", () => {
       const replay: ReplayData = {
         mobSpecs: [createMob(1, 2, 3)],
@@ -189,7 +189,7 @@ describe("url tests", () => {
       };
       const url = getReplayURL(replay);
       const decoded = decodeURL(new URL(url));
-      expect(decoded.mobs).to.deep.equal(replay.mobSpecs.map(addMobFields));
+      expect(decoded.mobs).to.deep.equal(replay.mobSpecs.map(convertMobSpecToMob));
       expect(decoded.playerCoordinates).to.deep.equal(replay.playerPositions);
     });
 
@@ -204,7 +204,7 @@ describe("url tests", () => {
       };
       const url = getReplayURL(replay);
       const decoded = decodeURL(new URL(url));
-      expect(decoded.mobs).to.deep.equal(replay.mobSpecs.map(addMobFields));
+      expect(decoded.mobs).to.deep.equal(replay.mobSpecs.map(convertMobSpecToMob));
       expect(decoded.playerCoordinates).to.deep.equal(replay.playerPositions);
     });
   });

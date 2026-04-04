@@ -241,11 +241,11 @@ function App() {
           id="exportReplayButton"
           disabled={!canSaveReplay}
           onClick={() => canvas.current?.exportReplay()}
-          aria-label="Export animation of the replay"
+          aria-label="Export .webm animation of the replay"
           data-microtip-position="bottom"
           role="tooltip"
         >
-          Export GIF
+          Export Video
         </button>
         <div>
           <input
