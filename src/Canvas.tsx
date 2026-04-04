@@ -9,6 +9,7 @@ import {
   togglePlayerLoS,
   copySpawnURL,
   copyReplayURL,
+  exportReplay,
   reset,
   initCanvas,
   onCanvasDblClick,
@@ -41,6 +42,7 @@ export type CanvasHandle = {
   setMode: typeof setMode;
   remove: typeof remove;
   place: typeof place;
+  exportReplay: typeof exportReplay;
   togglePlayerLoS: typeof togglePlayerLoS;
   copySpawnURL: typeof copySpawnURL;
   copyReplayURL: typeof copyReplayURL;
@@ -111,6 +113,7 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(
       togglePlayerLoS,
       copySpawnURL,
       copyReplayURL,
+      exportReplay,
       reset,
     }));
 

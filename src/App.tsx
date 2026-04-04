@@ -216,27 +216,36 @@ function App() {
       </div>
       
       <div className="frame">
-        Toggle:
         <button
           onClick={() => canvas.current?.togglePlayerLoS()}
           aria-label="Show the currently selected unit's Line of Sight"
           data-microtip-position="bottom"
           role="tooltip"
         >
-          LoS
+          Toggle LoS
         </button>
         <button onClick={() => canvas.current?.copySpawnURL()}>
           Copy Spawn URL
         </button>
         <button
           id="copyReplayUrlButton"
-          disabled={canSaveReplay}
+          disabled={!canSaveReplay}
           onClick={() => canvas.current?.copyReplayURL()}
           aria-label="Copy the current tick diagram as replay (or select a segment). Max 32 ticks"
           data-microtip-position="bottom"
           role="tooltip"
         >
           Copy Replay URL
+        </button>
+        <button
+          id="exportReplayButton"
+          disabled={!canSaveReplay}
+          onClick={() => canvas.current?.exportReplay()}
+          aria-label="Export .webm animation of the replay"
+          data-microtip-position="bottom"
+          role="tooltip"
+        >
+          Export Video
         </button>
         <div>
           <input

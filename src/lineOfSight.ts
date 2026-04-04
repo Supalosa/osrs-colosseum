@@ -1,7 +1,8 @@
-import { Coordinates, Mob, MobExtra, MobSpec, TapeEntry } from "./types";
+import { Coordinates, Mob, MobExtra, MobSpec, ReplayData, TapeEntry } from "./types";
 import { blockedTileRanges } from "./constants";
 
 import { canBounce } from "./venator";
+import { computeReplayBounds, convertMobSpecToMob, extendBounds, record } from "./utils";
 
 export const NPC_TYPES = {
   PLAYER: 0,
@@ -110,7 +111,7 @@ var spawns: Coordinates[] = [
 var mode = 0;
 // only used for manticore at the moment
 var modeExtra: MobExtra = null;
-var degen = false;
+var degen = false; // TODO: remove rotation
 const b5Tile = [7, 15] as const;
 var cursorLocation: Coordinates | null = null;
 var selected: Coordinates = [...b5Tile];
@@ -154,6 +155,52 @@ export function toggleAutoReplay() {
   updateUi();
 }
 
+export function exportReplay() {
+  if (!mapElement) {
+    return;
+  }
+  const { playerPositions, mobSpecs } = getReplayData();
+  const rawBounds = computeReplayBounds({ playerPositions, mobSpecs }, NPC_INFO);
+  const bounds = extendBounds(rawBounds, 4, MAP_WIDTH, MAP_HEIGHT); // extend visible area by 4 tiles
+  const playAreaWidth = (bounds.maxX - bounds.minX + 1) * TILE_SIZE;
+  const playAreaHeight = (bounds.maxY - bounds.minY + 1) * TILE_SIZE;
+
+  const sourceContext = mapElement.getContext('2d')!;
+  const exportCanvas = document.createElement('canvas');
+  exportCanvas.width = playAreaWidth + TICKER_WIDTH * TILE_SIZE;
+  exportCanvas.height = playAreaHeight;
+
+  reset();
+  mobs = mobSpecs.map(convertMobSpecToMob);
+  replay = playerPositions;
+  replayTick = 0;
+  selected = replay[0];
+
+  record(exportCanvas, () => {
+    if (replayTick === null || !replay) {
+      return true;
+    }
+    if (replayTick >= replay.length) {
+      // need to draw the wave one more time to be included in the video
+      drawWave();
+      return true;
+    }
+    step(true);
+    // copy relevant play area to exportCanvas
+    const imageContent = sourceContext.getImageData(bounds.minX * TILE_SIZE, bounds.minY * TILE_SIZE, playAreaWidth, playAreaHeight);
+    exportCanvas.getContext('2d')?.putImageData(imageContent, 0, 0);
+    // copy ticker to exportCanvas
+    const tickerContent = sourceContext.getImageData(TICKER_START_X, 0, TICKER_WIDTH * TILE_SIZE, CANVAS_HEIGHT);
+    exportCanvas.getContext('2d')?.putImageData(tickerContent, playAreaWidth, 0);
+    return false;
+  }, () => {
+      replay = null;
+      replayTick = null;
+      reset();
+      // Would be nice to set the state back to the original here.
+  });
+}
+
 const MAX_EXPORT_LENGTH = 128;
 
 let manticoreTicksRemaining: { [mobIndex: number]: number } = {};
@@ -168,7 +215,8 @@ var TILE_SIZE = 20;
 const MAP_WIDTH = 34;
 const MAP_HEIGHT = 34;
 const TICKER_WIDTH = 9;
-const CANVAS_WIDTH = TILE_SIZE * MAP_WIDTH + TICKER_WIDTH * TILE_SIZE;
+const TICKER_START_X = MAP_WIDTH * TILE_SIZE;
+const CANVAS_WIDTH = TICKER_START_X + TICKER_WIDTH * TILE_SIZE;
 const CANVAS_HEIGHT = TILE_SIZE * MAP_HEIGHT;
 
 export const setFromWaveStart = (val: boolean) => {
@@ -384,46 +432,43 @@ export function initCanvas(canvas: HTMLCanvasElement) {
 }
 
 let hasLoadedSpawns = false;
-function loadSpawns() {
-  if (hasLoadedSpawns) {
-    return;
-  }
-  hasLoadedSpawns = true;
-  var spawn = parent.location.search
+
+type DecodeURLResult = {
+  isFromWaveStart: boolean;
+  mobs: Mob[],
+  isMantiMayhem3: boolean;
+  playerCoordinates: Coordinates[] | null;
+  isReplay: boolean;
+}
+
+export function decodeURL(location: URL): DecodeURLResult {
+  const mobSpawns = location.search
     .replace("?", "")
     .split(".")
     .filter((s) => !!s);
-  for (var i = 0; i < spawn.length; i++) {
-    if (spawn[i] === "degeN") {
-      toggleNS();
-    } else {
-      var lx = parseInt(spawn[i].slice(0, 2));
-      var ly = parseInt(spawn[i].slice(2, 4));
-      var lm = parseInt(spawn[i].slice(4, 5));
-      var extra = spawn[i].slice(5) || null;
-
-      const newMob: Mob = [lx, ly, lm, lx, ly, 0, extra as MobExtra];
-
-      // Store original extra for manticores
-      if (lm === MANTICORE && extra) {
-        newMob.push(extra as MobExtra);
-      }
-
-      mobs.push(newMob);
+  const tempMobs: Mob[] = [];
+  for (var i = 0; i < mobSpawns.length; i++) {
+    const lx = parseInt(mobSpawns[i].slice(0, 2));
+    const ly = parseInt(mobSpawns[i].slice(2, 4));
+    const lm = parseInt(mobSpawns[i].slice(4, 5));
+    const extra = mobSpawns[i].slice(5) as MobExtra || null;
+    const mobSpec: MobSpec = [lx, ly, lm, extra];
+    const newMob = convertMobSpecToMob(mobSpec);
+    // Store original extra for manticores
+    if (lm === MANTICORE && extra) {
+      newMob.push(extra as MobExtra);
     }
+    tempMobs.push(newMob);
   }
-  sortMobs();
-  const hashParts = parent.location.hash?.split("_");
+  const hashParts = location.hash?.split("_");
   const playerCoords = hashParts?.[0];
 
-  // Check for ws and mm3 flags
-  if (hashParts?.includes("ws")) {
-    setFromWaveStart(true);
-  }
-  if (hashParts?.includes("mm3")) {
-    setMantimayhem3(true);
-  }
+  // Check flags
+  const isFromWaveStart = hashParts?.includes("ws") || false;
+  const isMantiMayhem3 = hashParts?.includes("mm3") || false;
 
+  let playerCoordinates: Coordinates[] | null = null;
+  let isReplay = false;
   const hash = playerCoords
     ?.replace("#", "")
     .split(".")
@@ -435,22 +480,44 @@ function loadSpawns() {
       const coordinate = decodeCoordinates(parseInt(split[0]));
       return Array(runLength).fill(coordinate);
     };
-    const positions = hash.flatMap((section) => decodeSection(section));
-
+    playerCoordinates = hash.flatMap((section) => decodeSection(section));
     // Check if this is a simple spawn URL (single position) or a replay URL (multiple positions or run-length encoded)
-    const isReplay = positions.length > 1 || hash.some(section => section.includes("x"));
+    isReplay = playerCoordinates.length > 1 || hash.some(section => section.includes("x"));
+  }
 
-    if (isReplay) {
-      // This is a replay URL - start the replay
-      replay = positions;
-      replayTick = 0;
-      selected = replay[0];
-      step();
-      replayAuto = setTimeout(() => doAutoTick(), 600);
-    } else {
-      // This is a spawn URL with just a player position - set position without starting replay
-      selected = positions[0];
-    }
+  return {
+    mobs: tempMobs,
+    isFromWaveStart,
+    isMantiMayhem3,
+    playerCoordinates,
+    isReplay
+  }
+}
+
+function loadSpawns() {
+  if (hasLoadedSpawns) {
+    return;
+  }
+  hasLoadedSpawns = true;
+  const { mobs: decodedMobs, isFromWaveStart, isMantiMayhem3, playerCoordinates, isReplay } = decodeURL(new URL(window.location.toString()));
+  mobs = decodedMobs;
+  sortMobs();
+  setFromWaveStart(isFromWaveStart);
+  setMantimayhem3(isMantiMayhem3);
+  if (!playerCoordinates) {
+    return;
+  }
+
+  if (isReplay) {
+    // This is a replay URL - start the replay
+    replay = playerCoordinates;
+    replayTick = 0;
+    selected = replay[0];
+    step();
+    replayAuto = setTimeout(() => doAutoTick(), 600);
+  } else {
+    // This is a spawn URL with just a player position - set position without starting replay
+    selected = playerCoordinates[0];
   }
 }
 
@@ -519,9 +586,11 @@ export function copySpawnURL() {
   copyQ(url);
   alert("Spawn URL Copied!");
 }
-export function copyReplayURL() {
+
+function getReplayData(): ReplayData {
   let lowerBound, upperBoundInclusive;
   if (tapeSelectionRange?.length === 2) {
+    // TODO: remove tapeSelectionRange
     lowerBound = tapeSelectionRange[0];
     upperBoundInclusive = Math.min(
       tapeSelectionRange[1] + 1,
@@ -532,7 +601,7 @@ export function copyReplayURL() {
     upperBoundInclusive = Math.min(tape.length, MAX_EXPORT_LENGTH);
   }
   var mobTicks = tape.slice(lowerBound, upperBoundInclusive);
-  var playerTicks = playerTape.slice(lowerBound, upperBoundInclusive);
+  var playerPositions = playerTape.slice(lowerBound, upperBoundInclusive);
 
   // get the mob positions/specs at the start of the selection
   const mobSpecs = mobTicks[0].map(
@@ -547,15 +616,20 @@ export function copyReplayURL() {
           : mobs[mobIdx][6],
       ] as MobSpec
   );
-  var url = getReplayURL(mobSpecs, playerTicks, fromWaveStart);
+  return { playerPositions, mobSpecs };
+}
+
+export function copyReplayURL() {
+  var url = getReplayURL(getReplayData(), fromWaveStart);
   copyQ(url);
   alert("Replay URL Copied!");
 }
 
-export function getReplayURL(mobSpecs: MobSpec[], playerTicks: Coordinates[], fromWaveStart: boolean = false) {
+export function getReplayURL(replayData: ReplayData, fromWaveStart: boolean = false) {
+  const { playerPositions, mobSpecs } = replayData
   var url = getSpawnUrl(mobSpecs);
   url = url.concat("#");
-  var playerLocations = playerTicks.map(encodeCoordinate);
+  var playerLocations = playerPositions.map(encodeCoordinate);
   // run-length encoding
   var last = playerLocations[0];
   var runLength = 1;
@@ -584,19 +658,17 @@ export function getReplayURL(mobSpecs: MobSpec[], playerTicks: Coordinates[], fr
   }
   return url;
 }
+
 function encodeCoordinate(coords: Coordinates) {
   return (coords[0] & 0xff) | ((coords[1] & 0xff) << 8);
 }
+
 function decodeCoordinates(coords: number): Coordinates {
   return [coords & 0xff, (coords >> 8) & 0xff];
 }
+
 export function togglePlayerLoS() {
   showPlayerLoS = !showPlayerLoS;
-  drawWave();
-}
-function toggleNS() {
-  mapElement?.classList.toggle("south");
-  degen = !degen;
   drawWave();
 }
 function isPillar(x: number, y: number) {
@@ -1177,9 +1249,7 @@ function updateUi() {
     !!replay && replayTick !== null && !!replay[replayTick],
     replay?.length ?? null
   );
-  losListener?.onCanSaveReplayChanged(
-    !!replayAuto && tape.length > 0 && tape.length <= 32
-  );
+  losListener?.onCanSaveReplayChanged(!replayAuto && tape.length > 0 && tape.length <= 32);
   losListener?.onReplayTickChanged(replayTick ?? 0);
 }
 
@@ -1384,7 +1454,7 @@ export function drawWave() {
     ctx.globalAlpha = 1;
   }
   // ticker tape
-  var offset = MAP_WIDTH * TILE_SIZE;
+  const offset = TICKER_START_X;
   const tickerStartY = (idx: number) => TILE_SIZE * idx;
   for (var i = 0; i < tape.length; i++) {
     if (fromWaveStart && i < DELAY_FIRST_ATTACK_TICKS) {

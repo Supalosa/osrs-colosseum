@@ -27,3 +27,8 @@ export type MobSpec = [MobSpawnX, MobSpawnY, MobType, MobExtra];
 // next 8 bits = mob x
 // next 8 bits = mob y
 export type TapeEntry = number[];
+
+export type ReplayData = {
+  mobSpecs: MobSpec[];
+  playerPositions: Coordinates[];
+}
