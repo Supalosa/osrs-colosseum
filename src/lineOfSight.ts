@@ -167,16 +167,22 @@ export function exportReplay() {
   replayTick = 0;
   selected = replay[0];
 
-  record(mapElement, (saveRecording) => {
-     if (replayTick === null || !replay || replayTick >= replay.length) {
+  record(mapElement, () => {
+    if (replayTick === null || !replay) {
+      return true;
+    }
+    if (replayTick >= replay.length) {
+      // need to draw the wave one more time to be included in the video
+      drawWave();
+      return true;
+    }
+    step(true);
+    return false;
+  }, () => {
       replay = null;
       replayTick = null;
       reset();
-      saveRecording();
       // Would be nice to set the state back to the original here.
-      return;
-    }
-    step(true);
   });
 }
 

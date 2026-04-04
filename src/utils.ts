@@ -10,22 +10,27 @@ export const convertMobSpecToMob = (mobSpec: MobSpec): Mob => [
   mobSpec[3], // extra
 ];
 
+// https://discourse.wicg.io/t/allow-non-realtime-use-of-mediarecorder/2308/
 export function record(
   canvas: HTMLCanvasElement,
-  onStep: (saveRecording: () => void) => void,
+  onStep: () => boolean,
+  onFinish: () => void,
 ) {
-  const captureStream = canvas.captureStream();
+  const captureStream = canvas.captureStream(30);
   const mediaRecorder = new MediaRecorder(captureStream, {
     mimeType: "video/webm; codecs=vp9",
+    videoBitsPerSecond: 5_000_000, // 5 Mbps
   });
   const chunks: Blob[] = [];
   function step() {
-    let finished = false;
-    onStep(() => {
-      finished = true;
-      mediaRecorder.stop();
-    });
-    if (!finished) {
+    const finished = onStep();
+    if (finished) {
+        // give another 600ms to record the last "step" and then let the caller clean up the canvas.
+        setTimeout(() => {
+            mediaRecorder.stop();
+            onFinish();
+        }, 600);
+    } else {
       setTimeout(step, 600);
     }
   }
