@@ -1,32 +1,35 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { MANTICORE, _getMobs, _setSelected, place, remove, setMode, step } from "../lineOfSight";
+import { LineOfSight } from "../lineOfSight";
+import { MANTICORE } from "../constants";
 
 describe("Manticore synchronization tests", () => {
+  let los: LineOfSight;
+
   beforeEach(() => {
-    remove();
+    los = new LineOfSight();
   });
 
   it("two 'u' manticores gaining los simultaneously should charge with the same orb order", () => {
     // Place player at position
-    _setSelected([16, 18], 0);
+    los._setSelected([16, 18], 0);
     
     // Place first unknown manticore 'u'
-    _setSelected([3, 19], MANTICORE);
-    setMode(MANTICORE, "u");
-    place();
+    los._setSelected([3, 19], MANTICORE);
+    los.setMode(MANTICORE, "u");
+    los.place();
     
     // Place second unknown manticore 'u'
-    _setSelected([9, 17], MANTICORE);
-    setMode(MANTICORE, "u");
-    place();
+    los._setSelected([9, 17], MANTICORE);
+    los.setMode(MANTICORE, "u");
+    los.place();
     
     // Move player to trigger los
-    _setSelected([16, 18], 0);
+    los._setSelected([16, 18], 0);
     
     // Step forward to trigger charging
-    step();
+    los.step();
     
-    const mobs = _getMobs();
+    const mobs = los._getMobs();
     const firstManticore = mobs[0];
     const secondManticore = mobs[1];
     

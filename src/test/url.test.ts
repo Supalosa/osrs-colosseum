@@ -1,8 +1,8 @@
 import { describe, expect, test } from "vitest";
-import { MANTICORE, decodeURL, getReplayURL, getSpawnUrl } from "../lineOfSight";
 import { createMob } from "./utils";
 import { ReplayData } from "../types";
-import { convertMobSpecToMob } from "../utils";
+import { convertMobSpecToMob, decodeURL, getReplayURL, getSpawnUrl } from "../utils";
+import { MANTICORE } from "../constants";
 
 describe("url tests", () => {
   test("empty spawn url", () => {

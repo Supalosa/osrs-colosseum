@@ -1,6 +1,6 @@
 import { expect } from "vitest";
 import { Mob, MobExtra, MobSpec } from "../types";
-import { _getMobs } from "../lineOfSight";
+import { LineOfSight } from "../lineOfSight";
 
 export const createMob = (
   x: number,
@@ -10,6 +10,7 @@ export const createMob = (
 ): MobSpec => [x, y, type, extra ?? null];
 
 export const checkMove = (
+  los: LineOfSight,
   // note: this NPC gets MUTATED so it is expected not to be what is passed out of _getMobs()
   mutableNpc: Mob,
   x: number,
@@ -23,7 +24,7 @@ export const checkMove = (
   } else {
     mutableNpc[5] = attacked;
   }
-  expect(_getMobs()).toContainEqual(mutableNpc);
+  expect(los._getMobs()).toContainEqual(mutableNpc);
 };
 
 export const checkPosition = (npc: Mob, x: number, y: number) => {
@@ -31,7 +32,7 @@ export const checkPosition = (npc: Mob, x: number, y: number) => {
   expect(npc[1]).toBe(y);
 };
 
-export const checkIdleStep = (npc: Mob) => {
+export const checkIdleStep = (los: LineOfSight, npc: Mob) => {
   npc[5]--;
-  expect(_getMobs()).toContainEqual(npc);
+  expect(los._getMobs()).toContainEqual(npc);
 };
