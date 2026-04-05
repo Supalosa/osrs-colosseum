@@ -1,67 +1,69 @@
 import { beforeAll, describe, expect, test } from "vitest";
-import { _getMobs, _setSelected, place, reset, step } from "../lineOfSight";
+import { LineOfSight } from "../lineOfSight";
 import { Mob } from "../types";
 import { checkIdleStep, checkMove } from "./utils";
 
 describe("trapped melee tests", () => {
+  let los: LineOfSight;
+
   beforeAll(() => {
     // this is a sequential test, so only reset state at the start
-    reset();
+    los = new LineOfSight();
   });
 
   test("empty state", () => {
-    expect(_getMobs()).toEqual([]);
+    expect(los._getMobs()).toEqual([]);
   });
 
   const meleer: Mob = [8, 13, 3, 8, 13, 0, null];
 
   test("place single melee npc", () => {
-    _setSelected([meleer[0], meleer[1]], meleer[2]);
-    place();
-    expect(_getMobs()).toEqual([meleer]);
+    los._setSelected([meleer[0], meleer[1]], meleer[2]);
+    los.place();
+    expect(los._getMobs()).toEqual([meleer]);
   });
 
   test("check npc moves towards player", () => {
-    _setSelected([7, 8], 0);
-    step();
-    checkMove(meleer, 7, 12);
+    los._setSelected([7, 8], 0);
+    los.step();
+    checkMove(los, meleer, 7, 12);
   });
 
   test("check npc gets stuck on pillar", () => {
-    step();
-    checkMove(meleer, 7, 12);
+    los.step();
+    checkMove(los, meleer, 7, 12);
   });
 
   test("check npc slides across pillar", () => {
-    _setSelected([11, 7], 0);
-    step();
-    checkMove(meleer, 8, 12);
+    los._setSelected([11, 7], 0);
+    los.step();
+    checkMove(los, meleer, 8, 12);
   });
 
   test("check npc comes around pillar", () => {
-    step();
-    checkMove(meleer, 9, 12);
-    step();
-    checkMove(meleer, 10, 12);
-    step();
+    los.step();
+    checkMove(los, meleer, 9, 12);
+    los.step();
+    checkMove(los, meleer, 10, 12);
+    los.step();
     // 2x2 npc can move diagonally around pillar
-    checkMove(meleer, 11, 11);
-    step();
-    checkMove(meleer, 11, 10);
-    step();
+    checkMove(los, meleer, 11, 11);
+    los.step();
+    checkMove(los, meleer, 11, 10);
+    los.step();
     // attacks player here
-    checkMove(meleer, 11, 9, 5);
+    checkMove(los, meleer, 11, 9, 5);
   });
 
   test("check npc gets corner trapped", () => {
-    _setSelected([10, 7], 0);
-    step();
-    checkIdleStep(meleer);
+    los._setSelected([10, 7], 0);
+    los.step();
+    checkIdleStep(los, meleer);
   });
 
   test("check npc is still corner trapped after moving north", () => {
-    _setSelected([10, 6], 0);
-    step();
-    checkMove(meleer, 11, 8);
+    los._setSelected([10, 6], 0);
+    los.step();
+    checkMove(los, meleer, 11, 8);
   });
 });

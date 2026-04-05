@@ -1,33 +1,36 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { MANTICORE, _getMobs, _setSelected, place, remove, reset, setMode, step, setFromWaveStart } from "../lineOfSight";
+import { LineOfSight } from "../lineOfSight";
+import { MANTICORE } from "../constants";
 
 describe("Manticore reset behavior", () => {
+  let los: LineOfSight;
+
   beforeEach(() => {
-    remove();
-    setFromWaveStart(false);
+    los = new LineOfSight();
+    los.setFromWaveStart(false);
   });
 
   it("'u' manticore inheriting from 'ur' manticore should reset back to 'u'", () => {
     // Place player at position where both manticores will have LOS
-    _setSelected([16, 18], 0);
+    los._setSelected([16, 18], 0);
     
     // Place an uncharged-but-known 'ur' manticore (within 15 range)
-    _setSelected([10, 19], MANTICORE);
-    setMode(MANTICORE, "ur");
-    place();
+    los._setSelected([10, 19], MANTICORE);
+    los.setMode(MANTICORE, "ur");
+    los.place();
     
     // Place an unknown 'u' manticore (within 15 range)
-    _setSelected([20, 15], MANTICORE);
-    setMode(MANTICORE, "u");
-    place();
+    los._setSelected([20, 15], MANTICORE);
+    los.setMode(MANTICORE, "u");
+    los.place();
     
     // Reset player position after placing NPCs (since place() resets mode to 0 which affects selected position)
-    _setSelected([16, 18], 0);
+    los._setSelected([16, 18], 0);
     
     // Step to trigger charging
-    step();
+    los.step();
     
-    let mobs = _getMobs();
+    let mobs = los._getMobs();
     const urManticore = mobs[0];
     const uManticore = mobs[1];
     
@@ -40,9 +43,9 @@ describe("Manticore reset behavior", () => {
     expect(uManticore[7]).toBe("u");
     
     // Reset
-    reset();
+    los.reset();
     
-    mobs = _getMobs();
+    mobs = los._getMobs();
     const urManticoreAfterReset = mobs[0];
     const uManticoreAfterReset = mobs[1];
     
@@ -57,25 +60,25 @@ describe("Manticore reset behavior", () => {
 
   it("'u' manticore inheriting from charged 'r' manticore should reset back to 'u'", () => {
     // Place player at position where both manticores will have LOS
-    _setSelected([16, 18], 0);
+    los._setSelected([16, 18], 0);
     
     // Place a charged 'r' manticore (within 15 range)
-    _setSelected([10, 19], MANTICORE);
-    setMode(MANTICORE, "r");
-    place();
+    los._setSelected([10, 19], MANTICORE);
+    los.setMode(MANTICORE, "r");
+    los.place();
     
     // Place an unknown 'u' manticore (within 15 range) 
-    _setSelected([20, 15], MANTICORE);
-    setMode(MANTICORE, "u");
-    place();
+    los._setSelected([20, 15], MANTICORE);
+    los.setMode(MANTICORE, "u");
+    los.place();
     
     // Reset player position after placing NPCs
-    _setSelected([16, 18], 0);
+    los._setSelected([16, 18], 0);
     
     // Step to trigger charging (u will inherit from charged r)
-    step();
+    los.step();
     
-    let mobs = _getMobs();
+    let mobs = los._getMobs();
     const rManticore = mobs[0];
     const uManticore = mobs[1];
     
@@ -88,9 +91,9 @@ describe("Manticore reset behavior", () => {
     expect(uManticore[7]).toBe("u");
     
     // Reset
-    reset();
+    los.reset();
     
-    mobs = _getMobs();
+    mobs = los._getMobs();
     const rManticoreAfterReset = mobs[0];
     const uManticoreAfterReset = mobs[1];
     
@@ -105,20 +108,20 @@ describe("Manticore reset behavior", () => {
 
   it("'u' manticore choosing randomly (no inheritance) should become 'ur' or 'um' permanently", () => {
     // Place player at position where manticore will have LOS
-    _setSelected([16, 18], 0);
+    los._setSelected([16, 18], 0);
     
     // Place only an unknown 'u' manticore (no others to inherit from)
-    _setSelected([20, 15], MANTICORE);
-    setMode(MANTICORE, "u");
-    place();
+    los._setSelected([20, 15], MANTICORE);
+    los.setMode(MANTICORE, "u");
+    los.place();
     
     // Reset player position after placing NPC
-    _setSelected([16, 18], 0);
+    los._setSelected([16, 18], 0);
     
     // Step to trigger charging
-    step();
+    los.step();
     
-    let mobs = _getMobs();
+    let mobs = los._getMobs();
     const manticore = mobs[0];
     
     // Should have chosen 'r' or 'm' randomly
@@ -129,9 +132,9 @@ describe("Manticore reset behavior", () => {
     expect(manticore[7]).toBe(expectedOriginal);
     
     // Reset
-    reset();
+    los.reset();
     
-    mobs = _getMobs();
+    mobs = los._getMobs();
     const manticoreAfterReset = mobs[0];
     
     // Should maintain the chosen style (now as uncharged version)

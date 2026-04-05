@@ -1,32 +1,13 @@
-import React, { useEffect, useImperativeHandle, useRef } from "react";
+import React, {
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
-import {
-  step,
-  toggleAutoReplay,
-  setMode,
-  remove,
-  place,
-  togglePlayerLoS,
-  copySpawnURL,
-  copyReplayURL,
-  exportReplay,
-  reset,
-  initCanvas,
-  onCanvasDblClick,
-  onCanvasRightClick,
-  onCanvasMouseWheel,
-  onCanvasMouseDown,
-  onCanvasMouseUp,
-  onCanvasMouseMove,
-  setFromWaveStart,
-  setMantimayhem3,
-  setShowVenatorBounce,
-  handleKeyDown,
-  LoSListener,
-  registerLoSListener,
-  drawWave,
-  onCanvasMouseOut,
-} from "./lineOfSight";
+import { LoSListener, LineOfSight } from "./lineOfSight";
+import { useOnChange } from "./useOnChange";
 
 export type CanvasProps = LoSListener & {
   fromWaveStart: boolean;
@@ -37,21 +18,23 @@ export type CanvasProps = LoSListener & {
 };
 
 export type CanvasHandle = {
-  step: typeof step;
-  toggleAutoReplay: typeof toggleAutoReplay;
-  setMode: typeof setMode;
-  remove: typeof remove;
-  place: typeof place;
-  exportReplay: typeof exportReplay;
-  togglePlayerLoS: typeof togglePlayerLoS;
-  copySpawnURL: typeof copySpawnURL;
-  copyReplayURL: typeof copyReplayURL;
-  reset: typeof reset;
+  step: LineOfSight["step"];
+  toggleAutoReplay: LineOfSight["toggleAutoReplay"];
+  setMode: LineOfSight["setMode"];
+  remove: LineOfSight["remove"];
+  place: LineOfSight["place"];
+  exportReplay: LineOfSight["exportReplay"];
+  togglePlayerLoS: LineOfSight["togglePlayerLoS"];
+  copySpawnURL: LineOfSight["copySpawnURL"];
+  copyReplayURL: LineOfSight["copyReplayURL"];
+  reset: LineOfSight["reset"];
 };
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(
   (props, ref) => {
+    const [lineOfSight, setLineOfSight] = useState<LineOfSight | null>(null);
+
     const {
       fromWaveStart,
       mantimayhem3,
@@ -64,78 +47,97 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(
       onMantimayhem3Changed,
       onMouseUp,
     } = props;
-    const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
-    const eventHandler: LoSListener = {
-      onHasReplayChanged,
-      onCanSaveReplayChanged,
-      onIsReplayingChanged,
-      onReplayTickChanged,
-      onFromWaveStartChanged,
-      onMantimayhem3Changed,
-    };
+    function handleCanvas(canvas: HTMLCanvasElement | null) {
+      if (lineOfSight) {
+        return;
+      }
+      if (!canvas) {
+        return;
+      }
+      const newLos = new LineOfSight();
+      newLos.initDOM(canvas);
+      newLos.registerLoSListener({
+        onHasReplayChanged,
+        onCanSaveReplayChanged,
+        onIsReplayingChanged,
+        onReplayTickChanged,
+        onFromWaveStartChanged,
+        onMantimayhem3Changed,
+      });
+      setLineOfSight(newLos);
+    }
 
     useEffect(() => {
-      const canvas = canvasRef.current!;
-      registerLoSListener(eventHandler);
-      initCanvas(canvas);
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (!lineOfSight) {
+          return;
+        }
+        lineOfSight.handleKeyDown(e);
+      };
       document.addEventListener("keydown", handleKeyDown);
       return () => {
-        // cleanup on unmount
         document.removeEventListener("keydown", handleKeyDown);
       };
-    }, []);
+    }, [lineOfSight]);
 
-    useEffect(() => {
-      setFromWaveStart(fromWaveStart);
-      drawWave();
-    }, [fromWaveStart]);
+    useOnChange(() => {
+      if (!lineOfSight) {
+        return;
+      }
+      lineOfSight.setFromWaveStart(fromWaveStart);
+      lineOfSight.drawWave();
+    }, fromWaveStart);
 
-    useEffect(() => {
-      setShowVenatorBounce(showVenatorBounce);
-      drawWave();
-    }, [showVenatorBounce]);
+    useOnChange(() => {
+      if (!lineOfSight) {
+        return;
+      }
+      lineOfSight.setFromWaveStart(showVenatorBounce);
+      lineOfSight.drawWave();
+    }, showVenatorBounce);
 
-    useEffect(() => {
-      setMantimayhem3(mantimayhem3);
-      drawWave();
-    }, [mantimayhem3]);
+    useOnChange(() => {
+      if (!lineOfSight) {
+        return;
+      }
+      lineOfSight.setMantimayhem3(mantimayhem3);
+      lineOfSight.drawWave();
+    }, mantimayhem3);
 
+    // TODO clean this handling up
     useImperativeHandle(ref, () => ({
-      step: () => {
-        step();
-        drawWave();
-      },
-      toggleAutoReplay,
-      setMode,
-      remove,
-      place,
-      togglePlayerLoS,
-      copySpawnURL,
-      copyReplayURL,
-      exportReplay,
-      reset,
+      step: () => lineOfSight?.step(true),
+      toggleAutoReplay: () => lineOfSight?.toggleAutoReplay(),
+      setMode: (...args) => lineOfSight?.setMode(...args),
+      remove: () => lineOfSight?.remove(),
+      place: () => lineOfSight?.place(),
+      reset: () => lineOfSight?.reset(),
+      togglePlayerLoS: () => lineOfSight?.togglePlayerLoS(),
+      copySpawnURL: () => lineOfSight?.copySpawnURL(),
+      copyReplayURL: () => lineOfSight?.copyReplayURL(),
+      exportReplay: () => lineOfSight?.exportReplay(),
     }));
 
     return (
       <canvas
-        ref={canvasRef}
+        ref={handleCanvas}
         id="map"
         onSelect={() => false}
-        onContextMenu={onCanvasRightClick}
-        onMouseDown={onCanvasMouseDown}
+        onContextMenu={(e) => lineOfSight?.onCanvasRightClick(e)}
+        onMouseDown={(e) => lineOfSight?.onCanvasMouseDown(e)}
         onMouseUp={(e) => {
-          onCanvasMouseUp(e);
+          lineOfSight?.onCanvasMouseUp(e);
           onMouseUp?.(e);
         }}
-        onDoubleClick={onCanvasDblClick}
-        onWheel={onCanvasMouseWheel}
-        onMouseMove={onCanvasMouseMove}
-        onMouseOut={onCanvasMouseOut}
+        onDoubleClick={(e) => lineOfSight?.onCanvasDblClick(e)}
+        onWheel={(e) => lineOfSight?.onCanvasMouseWheel(e)}
+        onMouseMove={(e) => lineOfSight?.onCanvasMouseMove(e)}
+        onMouseOut={() => lineOfSight?.onCanvasMouseOut()}
         onDragEnter={(e) => e.preventDefault()}
         onDragEnd={(e) => e.preventDefault()}
         onDrag={(e) => e.preventDefault()}
       />
     );
-  }
+  },
 );
