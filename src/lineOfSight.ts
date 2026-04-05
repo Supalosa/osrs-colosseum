@@ -4,15 +4,6 @@ import { blockedTileRanges, DELAY_FIRST_ATTACK_TICKS, MANTICORE, MANTICORE_ATTAC
 import { canBounce } from "./venator";
 import { computeReplayBounds, convertMobSpecToMob, copyQ, decodeURL, encodeCoordinate, extendBounds, getMobSpec, getReplayURL, getSpawnUrl, record } from "./utils";
 
-export type LoSListener = {
-  onHasReplayChanged: (hasReplay: boolean, replayLength: number | null) => void;
-  onIsReplayingChanged: (isReplaying: boolean) => void;
-  onCanSaveReplayChanged: (canReplay: boolean) => void;
-  onReplayTickChanged: (tick: number) => void;
-  onFromWaveStartChanged: (fromWaveStart: boolean) => void;
-  onMantimayhem3Changed: (mantimayhem3: boolean) => void;
-};
-
 const PILLAR_COORDS = [
   [8, 10],
   [23, 10],
@@ -93,7 +84,7 @@ export class LineOfSight {
 
   mapElement: HTMLCanvasElement | null = null;
   ctx: CanvasRenderingContext2D | null = null;
-  losListener: LoSListener | null = null;
+  subscribers: VoidFunction[] = [];
   
   images: (HTMLImageElement | null)[] = [];
   
@@ -185,19 +176,61 @@ export class LineOfSight {
     });
   }
 
+  /**
+   * Subscribe to changes in the state exposed by this LOS instance.
+   */
+  public subscribe(callback: VoidFunction) {
+    this.subscribers.push(callback);
+  }
+
+  /**
+   * Subscribe to changes in the state exposed by this LOS instance.
+   */
+  public unsubscribe(callback: VoidFunction) {
+    this.subscribers = this.subscribers.filter((c) => c !== callback);
+  }
+
+  private onUpdateSubscribers() {
+    this.subscribers.forEach((callback) => callback());
+  }
+
   public setFromWaveStart = (val: boolean) => {
     this.fromWaveStart = val;
-    this.losListener?.onFromWaveStartChanged(val);
+    this.onUpdateSubscribers();
   };
 
   public setMantimayhem3 = (val: boolean) => {
     this.mantimayhem3 = val;
-    this.losListener?.onMantimayhem3Changed(val);
+    this.onUpdateSubscribers();
   };
 
   public setShowVenatorBounce = (show: boolean) => {
     this.showVenatorBounce = show;
   };
+  
+  private updateUi() {
+    // currently, we always fire subscriber events
+    this.onUpdateSubscribers();
+  }
+
+  private _lastUiState: any = null;
+  public getUiState() {
+    const uiState = {
+      mantimayhem3: this.mantimayhem3,
+      fromWaveStart: this.fromWaveStart,
+      isReplaying: !!this.replayAuto,
+      hasReplay: !!this.replay && this.replayTick !== null && !!this.replay[this.replayTick],
+      replayLength: this.replay?.length ?? null,
+      canSaveReplay: !this.replayAuto && this.tape.length > 0 && this.tape.length <= 32,
+      replayTick: this.replayTick ?? 0
+    }
+    // check if any UI state has changed
+    if (!this._lastUiState || Object.entries(uiState).some(([k, v]) => this._lastUiState[k] !== v)) {
+      this._lastUiState = uiState;
+      return uiState;
+    }
+    return this._lastUiState;
+  }
 
   public handleKeyDown(e: KeyboardEvent) {
     switch (e.keyCode) {
@@ -1037,22 +1070,6 @@ export class LineOfSight {
       }
     }
     this.ctx.globalAlpha = 1;
-  }
-
-  // currently, only one LoS listener is allowed.
-  public registerLoSListener(listener: LoSListener) {
-    this.losListener = listener;
-  }
-
-  private updateUi() {
-    // currently, we always fire events
-    this.losListener?.onIsReplayingChanged(!!this.replayAuto);
-    this.losListener?.onHasReplayChanged(
-      !!this.replay && this.replayTick !== null && !!this.replay[this.replayTick],
-      this.replay?.length ?? null
-    );
-    this.losListener?.onCanSaveReplayChanged(!this.replayAuto && this.tape.length > 0 && this.tape.length <= 32);
-    this.losListener?.onReplayTickChanged(this.replayTick ?? 0);
   }
 
   public drawWave() {
