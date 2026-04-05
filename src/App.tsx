@@ -4,6 +4,7 @@ import {
   useCallback,
   useEffect,
   useState,
+  useSyncExternalStore,
 } from "react";
 import { MobExtra } from "./types";
 import { ManticoreOverlay } from "./ManticoreOverlay";
@@ -15,23 +16,19 @@ import { NpcType } from "./constants";
 function App() {
   const [isDragging, setDragging] = useState(false);
 
-  // note: this is a bit janky (it's set here on first mount + in lineOnSight in parse)
-  const [fromWaveStart, setFromWaveStart] = useState(
-    parent.location.hash?.includes("ws"),
-  );
-  const [mantimayhem3, setMantimayhem3] = useState(
-    parent.location.hash?.includes("mm3"),
-  );
-  const [showVenatorBounce, setShowVenatorBounce] = useState(false);
-
-  const [currentReplayLength, setCurrentReplayLength] = useState<number | null>(
-    null,
-  );
-  const [isReplaying, setIsReplaying] = useState(false);
-  const [canSaveReplay, setCanSaveReplay] = useState(false);
-  const [replayTick, setReplayTick] = useState(0);
-
   const [lineOfSight, setLineOfSight] = useState<LineOfSight | null>(null);
+  
+  useSyncExternalStore((s) => {
+    lineOfSight?.subscribe(s);
+    return () => lineOfSight?.unsubscribe(s);
+  }, () => lineOfSight?.getUiState());
+
+  const uiState = lineOfSight?.getUiState();
+
+  const currentReplayLength = uiState?.replayLength;
+  const isReplaying = uiState?.isReplaying;
+  const canSaveReplay = uiState?.canSaveReplay;
+  const replayTick = uiState?.replayTick;
 
   function handleCanvas(canvas: HTMLCanvasElement | null) {
     if (lineOfSight) {
@@ -42,15 +39,6 @@ function App() {
     }
     const newLos = new LineOfSight();
     newLos.initDOM(canvas);
-    newLos.registerLoSListener({
-      onHasReplayChanged: (_hasReplay, replayLength) =>
-        setCurrentReplayLength(replayLength ?? null),
-      onCanSaveReplayChanged: setCanSaveReplay,
-      onIsReplayingChanged: setIsReplaying,
-      onReplayTickChanged: setReplayTick,
-      onFromWaveStartChanged: setFromWaveStart,
-      onMantimayhem3Changed: setMantimayhem3,
-    });
     setLineOfSight(newLos);
   }
 
@@ -71,31 +59,33 @@ function App() {
     setDragging(false);
   };
 
-  const DraggableUnitButton = useCallback((
-    props: Omit<UnitButtonProps, "lineOfSight"> & {
-      mode: NpcType;
-      extra?: MobExtra;
+  const DraggableUnitButton = useCallback(
+    (
+      props: UnitButtonProps & {
+        mode: NpcType;
+        extra?: MobExtra;
+      },
+    ) => {
+      const { mode, extra } = props;
+      return (
+        <UnitButton
+          {...props}
+          onMouseDown={(e) => {
+            lineOfSight?.setMode(mode, extra);
+            setDragging(true);
+            e.preventDefault();
+          }}
+          onClick={(e) => {
+            lineOfSight?.setMode(mode, extra, true);
+            setDragging(true);
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+        />
+      );
     },
-  ) => {
-    const { mode, extra } = props;
-    return (
-      <UnitButton
-        {...props}
-        lineOfSight={lineOfSight}
-        onMouseDown={(e) => {
-          lineOfSight?.setMode(mode, extra);
-          setDragging(true);
-          e.preventDefault();
-        }}
-        onClick={(e) => {
-          lineOfSight?.setMode(mode, extra, true);
-          setDragging(true);
-          e.preventDefault();
-          e.stopPropagation();
-        }}
-      />
-    );
-  }, [lineOfSight]);
+    [lineOfSight],
+  );
 
   return (
     <>
@@ -109,7 +99,7 @@ function App() {
           </div>
           {/* this is the row below the clear & place npc buttons row that acts as a placeholder */}
           <div className="controls-placeholder">
-            {mantimayhem3 && <div style={{ height: "64px" }}></div>}
+            {lineOfSight?.mantimayhem3 && <div style={{ height: "64px" }}></div>}
           </div>
         </div>
         {/* this div houses the player & npc buttons *column* */}
@@ -187,7 +177,7 @@ function App() {
             />
           </div>
           {/* this is the mantimayhem 3 units row that appear conditionally */}
-          {mantimayhem3 && (
+          {lineOfSight?.mantimayhem3 && (
             <div className="units-row mm3-row">
               {/* 3 placeholder units on the left */}
               <div style={{ width: 64, height: 64 }}></div>
@@ -276,8 +266,8 @@ function App() {
         <div>
           <input
             type="checkbox"
-            checked={fromWaveStart ? true : false}
-            onChange={(e) => setFromWaveStart(e.target.checked)}
+            checked={lineOfSight?.fromWaveStart ? true : false}
+            onChange={(e) => lineOfSight?.setFromWaveStart(e.target.checked)}
             aria-label="NPCs will not attack for 3t after wave start, cannot move on the first tick, have melee distance second tick"
             data-microtip-position="bottom"
             role="tooltip"
@@ -287,8 +277,8 @@ function App() {
         <div>
           <input
             type="checkbox"
-            checked={mantimayhem3 ? true : false}
-            onChange={(e) => setMantimayhem3(e.target.checked)}
+            checked={lineOfSight?.mantimayhem3 ? true : false}
+            onChange={(e) => lineOfSight?.setMantimayhem3(e.target.checked)}
             aria-label="Mantimayhem 3: Manticores can have random orb attack orders"
             data-microtip-position="bottom"
             role="tooltip"
@@ -298,8 +288,8 @@ function App() {
         <div>
           <input
             type="checkbox"
-            value={showVenatorBounce ? "true" : "false"}
-            onChange={(e) => setShowVenatorBounce(e.target.checked)}
+            value={lineOfSight?.showVenatorBounce ? "true" : "false"}
+            onChange={(e) => lineOfSight?.setShowVenatorBounce(e.target.checked)}
             aria-label="Mouse over an NPC to show nearby NPCs that a Venator bow will bounce to"
             data-microtip-position="bottom"
             role="tooltip"
@@ -369,7 +359,6 @@ function App() {
 }
 
 type UnitButtonProps = {
-  lineOfSight: LineOfSight | null;
   onMouseDown?: MouseEventHandler;
   onClick?: MouseEventHandler;
   image: string;
