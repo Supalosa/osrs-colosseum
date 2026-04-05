@@ -84,13 +84,12 @@ const MINOTAUR_HEAL_COLOR = "purple";
 
 const DELAY_FIRST_ATTACK_TICKS = 3;
 
-var pillars = [
+const PILLAR_COORDS = [
   [8, 10],
   [23, 10],
   [8, 25],
   [23, 25],
 ];
-var filters = [true, true, true, true];
 
 var spawns: Coordinates[] = [
   [3, 19],
@@ -673,11 +672,8 @@ export function togglePlayerLoS() {
 }
 function isPillar(x: number, y: number) {
   var isPillar = false;
-  for (var j = 0; j < pillars.length; j++) {
-    if (filters[j]) {
-      isPillar =
-        doesCollide(x, y, 1, pillars[j][0], pillars[j][1], 3) || isPillar;
-    }
+  for (var j = 0; j < PILLAR_COORDS.length; j++) {
+    isPillar = doesCollide(x, y, 1, PILLAR_COORDS[j][0], PILLAR_COORDS[j][1], 3) || isPillar;
   }
   if (y >= 0 && y < blockedTileRanges.length) {
     const ranges = blockedTileRanges[y];
@@ -795,11 +791,8 @@ function legalPosition(x: number, y: number, size: number, index: number) {
     return false;
   }
   var collision = false;
-  for (var i = 0; i < pillars.length; i++) {
-    if (
-      filters[i] &&
-      doesCollide(x, y, size, pillars[i][0], pillars[i][1], 3)
-    ) {
+  for (var i = 0; i < PILLAR_COORDS.length; i++) {
+    if (doesCollide(x, y, size, PILLAR_COORDS[i][0], PILLAR_COORDS[i][1], 3)) {
       return false;
     }
   }
@@ -1307,15 +1300,13 @@ export function drawWave() {
 
   //pillars
   ctx.fillStyle = "#222";
-  for (var i = 0; i < pillars.length; i++) {
-    if (filters[i]) {
-      ctx.fillRect(
-        pillars[i][0] * TILE_SIZE,
-        (pillars[i][1] + 1) * TILE_SIZE,
-        3 * TILE_SIZE,
-        -3 * TILE_SIZE
-      );
-    }
+  for (var i = 0; i < PILLAR_COORDS.length; i++) {
+    ctx.fillRect(
+      PILLAR_COORDS[i][0] * TILE_SIZE,
+      (PILLAR_COORDS[i][1] + 1) * TILE_SIZE,
+      3 * TILE_SIZE,
+      -3 * TILE_SIZE
+    );
   }
   if (showSpawns) {
     ctx.globalAlpha = 0.35;
