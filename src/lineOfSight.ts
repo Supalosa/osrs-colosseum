@@ -91,12 +91,11 @@ const PILLAR_COORDS = [
   [23, 25],
 ];
 
-var spawns: Coordinates[] = [
+const SPAWNS: Coordinates[] = [
   [3, 19],
   [9, 17],
   [3, 14],
   [13, 14],
-  [16, 13],
   [19, 14],
   [17, 9],
   [13, 20],
@@ -1314,10 +1313,10 @@ export function drawWave() {
     ctx.globalAlpha = 0;
   }
   ctx.fillStyle = "#999";
-  for (var i = 0; i < spawns.length; i++) {
+  for (var i = 0; i < SPAWNS.length; i++) {
     ctx.fillRect(
-      spawns[i][0] * TILE_SIZE,
-      (spawns[i][1] + 1) * TILE_SIZE,
+      SPAWNS[i][0] * TILE_SIZE,
+      (SPAWNS[i][1] + 1) * TILE_SIZE,
       3 * TILE_SIZE,
       -3 * TILE_SIZE
     );
