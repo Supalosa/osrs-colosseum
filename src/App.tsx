@@ -1,13 +1,11 @@
 import {
   CSSProperties,
-  MouseEvent,
   MouseEventHandler,
   useCallback,
   useEffect,
-  useMemo,
   useState,
 } from "react";
-import { MobType, MobExtra } from "./types";
+import { MobExtra } from "./types";
 import { ManticoreOverlay } from "./ManticoreOverlay";
 import { LineOfSight } from "./lineOfSight";
 
