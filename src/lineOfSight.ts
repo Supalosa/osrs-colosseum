@@ -105,14 +105,23 @@ const SPAWNS: Coordinates[] = [
   [28, 14],
   [28, 19],
 ];
+const B5_ORIGIN_TILE: Coordinates = [7, 15];
+
+const MAX_EXPORT_LENGTH = 128;
+const TILE_SIZE = 20;
+const MAP_WIDTH = 34;
+const MAP_HEIGHT = 34;
+const TICKER_WIDTH = 9;
+const TICKER_START_X = MAP_WIDTH * TILE_SIZE;
+const CANVAS_WIDTH = TICKER_START_X + TICKER_WIDTH * TILE_SIZE;
+const CANVAS_HEIGHT = TILE_SIZE * MAP_HEIGHT;
 
 var mode = 0;
 // only used for manticore at the moment
 var modeExtra: MobExtra = null;
 var degen = false; // TODO: remove rotation
-const b5Tile = [7, 15] as const;
 var cursorLocation: Coordinates | null = null;
-var selected: Coordinates = [...b5Tile];
+var selected: Coordinates = [...B5_ORIGIN_TILE];
 var stepStartPosition: Coordinates | null = null;
 var mobs: Mob[] = [];
 var showSpawns = true;
@@ -134,6 +143,15 @@ let replayAuto: ReturnType<typeof setTimeout> | null = null;
 
 let draggingNpcIndex: number | null = null;
 let draggingNpcOffset: Coordinates | null = null;
+
+let manticoreTicksRemaining: { [mobIndex: number]: number } = {};
+
+let mapElement: HTMLCanvasElement | null = null;
+let fromWaveStart: boolean = false;
+let mantimayhem3: boolean = false;
+let showVenatorBounce: boolean = false;
+
+var ctx: CanvasRenderingContext2D | null = null;
 
 function doAutoTick() {
   if (!replayAuto) {
@@ -198,24 +216,6 @@ export function exportReplay() {
       // Would be nice to set the state back to the original here.
   });
 }
-
-const MAX_EXPORT_LENGTH = 128;
-
-let manticoreTicksRemaining: { [mobIndex: number]: number } = {};
-
-let mapElement: HTMLCanvasElement | null = null;
-let fromWaveStart: boolean = false;
-let mantimayhem3: boolean = false;
-let showVenatorBounce: boolean = false;
-
-var ctx: CanvasRenderingContext2D | null = null;
-var TILE_SIZE = 20;
-const MAP_WIDTH = 34;
-const MAP_HEIGHT = 34;
-const TICKER_WIDTH = 9;
-const TICKER_START_X = MAP_WIDTH * TILE_SIZE;
-const CANVAS_WIDTH = TICKER_START_X + TICKER_WIDTH * TILE_SIZE;
-const CANVAS_HEIGHT = TILE_SIZE * MAP_HEIGHT;
 
 export const setFromWaveStart = (val: boolean) => {
   fromWaveStart = val;
@@ -558,7 +558,7 @@ export function copySpawnURL() {
   var url = getSpawnUrl(mobSpecs);
 
   // Check if player has been moved from starting position
-  const playerMoved = selected[0] !== b5Tile[0] || selected[1] !== b5Tile[1];
+  const playerMoved = selected[0] !== B5_ORIGIN_TILE[0] || selected[1] !== B5_ORIGIN_TILE[1];
 
   // Build hash fragments
   const hashParts = [];
@@ -1136,7 +1136,7 @@ function stopReplay() {
 export function remove() {
   mobs = [];
   stopReplay();
-  selected = [...b5Tile];
+  selected = [...B5_ORIGIN_TILE];
   stepStartPosition = null;
   const url = new URL(window.location.href);
   url.search = "";
@@ -1323,7 +1323,7 @@ export function drawWave() {
   }
   ctx.globalAlpha = 1;
   ctx.fillStyle = "#9F9";
-  ctx.fillRect(scale(b5Tile[0]), scale(b5Tile[1]), TILE_SIZE, TILE_SIZE);
+  ctx.fillRect(scale(B5_ORIGIN_TILE[0]), scale(B5_ORIGIN_TILE[1]), TILE_SIZE, TILE_SIZE);
   ctx.globalAlpha = 1;
   //mobs
   for (var i = 0; i < mobs.length; i++) {
