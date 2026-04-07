@@ -322,7 +322,7 @@ function App() {
           {isReplaying ? "Pause" : "Play"}
         </button>
         <button
-          onClick={() => lineOfSight?.step()}
+          onClick={() => lineOfSight?.step(true)}
           title="hotkey: up or mousewheel down"
         >
           Step
