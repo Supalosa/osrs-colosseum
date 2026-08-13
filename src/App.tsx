@@ -46,9 +46,19 @@ function App() {
     const handleKeyDown = (e: KeyboardEvent) => {
       lineOfSight?.handleKeyDown(e);
     };
+    const handleKeyUp = (e: KeyboardEvent) => {
+      lineOfSight?.handleKeyUp(e);
+    };
+    const handleBlur = () => {
+      lineOfSight?.clearHeldKeys();
+    };
     document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("keyup", handleKeyUp);
+    window.addEventListener("blur", handleBlur);
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("keyup", handleKeyUp);
+      window.removeEventListener("blur", handleBlur);
     };
   }, [lineOfSight]);
 
@@ -263,6 +273,17 @@ function App() {
         >
           Export Video
         </button>
+        <div>
+          <input
+            type="checkbox"
+            checked={lineOfSight?.run ? true : false}
+            onChange={(e) => lineOfSight?.setRun(e.target.checked)}
+            aria-label="Move the player with WASD (diagonals: hold two keys). Run moves 2 tiles per turn, walk moves 1. Each move advances one tick"
+            data-microtip-position="bottom"
+            role="tooltip"
+          />
+          <span>Run</span>
+        </div>
         <div>
           <input
             type="checkbox"
