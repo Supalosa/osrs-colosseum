@@ -28,6 +28,51 @@ body {
   width: 860px;
 }
 
+.canvas-ticker-container {
+  display: flex;
+  align-items: flex-start;
+}
+
+.ticker {
+  /* 180px = TICKER_WIDTH (9) * TILE_SIZE (20); 680px = MAP_HEIGHT (34) * TILE_SIZE (20) */
+  width: 180px;
+  height: 680px;
+  overflow-y: auto;
+  border: 1px solid #999;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.ticker-row {
+  display: flex;
+  height: 20px;
+  position: relative;
+  cursor: pointer;
+}
+
+.ticker-cell {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ticker-orb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1px solid white;
+}
+
+.ticker-selection {
+  position: absolute;
+  inset: 0;
+  background-color: rgba(255, 255, 0, 0.25); /* yellow at 25% opacity */
+  pointer-events: none;
+}
+
 .frame {
   margin-bottom: 13px;
   width: 100%;

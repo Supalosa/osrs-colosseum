@@ -3,6 +3,7 @@ import {
   MouseEventHandler,
   useCallback,
   useEffect,
+  useRef,
   useState,
   useSyncExternalStore,
 } from "react";
@@ -11,13 +12,13 @@ import { ManticoreOverlay } from "./ManticoreOverlay";
 import { LineOfSight } from "./lineOfSight";
 
 import "./App.css";
-import { NpcType } from "./constants";
+import { DELAY_FIRST_ATTACK_TICKS, MANTICORE, MANTICORE_ATTACKS, NPC_INFO, NpcType } from "./constants";
 
 function App() {
   const [isDragging, setDragging] = useState(false);
 
   const [lineOfSight, setLineOfSight] = useState<LineOfSight | null>(null);
-  
+
   useSyncExternalStore((s) => {
     lineOfSight?.subscribe(s);
     return () => lineOfSight?.unsubscribe(s);
@@ -29,6 +30,15 @@ function App() {
   const isReplaying = uiState?.isReplaying;
   const canSaveReplay = uiState?.canSaveReplay;
   const replayTick = uiState?.replayTick;
+  const tapeSelectionRange = uiState?.tapeSelectionRange;
+
+  const tickerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (tickerRef.current) {
+      tickerRef.current.scrollTop = tickerRef.current.scrollHeight;
+    }
+  }, [uiState?.tapeLength]);
 
   function handleCanvas(canvas: HTMLCanvasElement | null) {
     if (lineOfSight) {
@@ -328,20 +338,63 @@ function App() {
           Step
         </button>
       </div>
-      <canvas
-        ref={handleCanvas}
-        onSelect={() => false}
-        onContextMenu={(e) => lineOfSight?.onCanvasRightClick(e)}
-        onMouseDown={(e) => lineOfSight?.onCanvasMouseDown(e)}
-        onMouseUp={(e) => {
-          lineOfSight?.onCanvasMouseUp(e);
-          handleMaybeDrop?.();
-        }}
-        onDoubleClick={(e) => lineOfSight?.onCanvasDblClick(e)}
-        onWheel={(e) => lineOfSight?.onCanvasMouseWheel(e)}
-        onMouseMove={(e) => lineOfSight?.onCanvasMouseMove(e)}
-        onMouseOut={() => lineOfSight?.onCanvasMouseOut()}
-      />
+      <div className="canvas-ticker-container">
+        <canvas
+          ref={handleCanvas}
+          onSelect={() => false}
+          onContextMenu={(e) => lineOfSight?.onCanvasRightClick(e)}
+          onMouseDown={(e) => lineOfSight?.onCanvasMouseDown(e)}
+          onMouseUp={(e) => {
+            lineOfSight?.onCanvasMouseUp(e);
+            handleMaybeDrop?.();
+          }}
+          onDoubleClick={(e) => lineOfSight?.onCanvasDblClick(e)}
+          onWheel={(e) => lineOfSight?.onCanvasMouseWheel(e)}
+          onMouseMove={(e) => lineOfSight?.onCanvasMouseMove(e)}
+          onMouseOut={() => lineOfSight?.onCanvasMouseOut()}
+        />
+        <div
+          className="ticker"
+          ref={tickerRef}
+        >
+          {lineOfSight?.tape.map((entry, i) => {
+            const isDelayed = lineOfSight.fromWaveStart && i < DELAY_FIRST_ATTACK_TICKS;
+            const bgColor = isDelayed
+              ? i % 2 === 0 ? "#666" : "#777"
+              : i % 2 === 0 ? "#ddd" : "#eee";
+            const selStart = tapeSelectionRange?.[0] ?? -1;
+            const selEnd = tapeSelectionRange?.[1] ?? selStart + 1;
+            const isSelected = tapeSelectionRange != null && i >= selStart && i < selEnd;
+            return (
+              <div
+                key={i}
+                className="ticker-row"
+                style={{ backgroundColor: bgColor }}
+                onMouseDown={() => lineOfSight.onTickerMouseDown(i)}
+                onMouseUp={() => lineOfSight.onTickerMouseUp(i)}
+              >
+                {isSelected && <div className="ticker-selection" />}
+                {entry.map((value, j) => {
+                  const attacked = value & 0xff;
+                  const mobType = lineOfSight.mobs[j]?.[2];
+                  if (mobType <= 0 || !attacked) return <div key={j} className="ticker-cell" />;
+                  const color = NPC_INFO[mobType].color;
+                  if (mobType === MANTICORE) {
+                    const pattern = (value >> 8) & 0xff;
+                    const orbColor = MANTICORE_ATTACKS[pattern];
+                    return (
+                      <div key={j} className="ticker-cell" style={{ backgroundColor: color }}>
+                        <div className="ticker-orb" style={{ backgroundColor: orbColor }} />
+                      </div>
+                    );
+                  }
+                  return <div key={j} className="ticker-cell" style={{ backgroundColor: color }} />;
+                })}
+              </div>
+            );
+          })}
+        </div>
+      </div>
       <p className="footer">
         Based on{" "}
         <a href="https://ifreedive-osrs.github.io/">ifreedive's tool</a> which
