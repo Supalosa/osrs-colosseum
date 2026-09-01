@@ -224,7 +224,10 @@ export class LineOfSight {
       isReplaying: !!this.replayAuto,
       hasReplay: !!this.replay && this.replayTick !== null && !!this.replay[this.replayTick],
       replayLength: this.replay?.length ?? null,
-      canSaveReplay: !this.replayAuto && this.tape.length > 0 && this.tape.length <= 32,
+      canSaveReplay: !this.replayAuto && this.tape.length > 0 && (
+        this.tape.length <= 32 ||
+        (this.tapeSelectionRange?.length === 2 && this.tapeSelectionRange[1] - this.tapeSelectionRange[0] <= 32)
+      ),
       replayTick: this.replayTick ?? 0
     }
     // check if any UI state has changed
