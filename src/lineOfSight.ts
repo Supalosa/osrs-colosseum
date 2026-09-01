@@ -40,6 +40,13 @@ const CANVAS_HEIGHT = TILE_SIZE * MAP_HEIGHT;
 
 const CHECKER = true;
 
+const MOVEMENT_KEYS = ["w", "a", "s", "d"];
+// minimum ms between auto-repeated key moves while a movement key is held
+const KEY_REPEAT_MOVE_MS = 150;
+// window to collect near-simultaneous key presses (e.g. W+A) into a single
+// diagonal move rather than two separate turns
+const KEY_CHORD_WINDOW_MS = 40;
+
 export class LineOfSight {
 
   /**
@@ -74,6 +81,13 @@ export class LineOfSight {
   fromWaveStart: boolean = false;
   mantimayhem3: boolean = false;
   showVenatorBounce: boolean = false;
+
+  // Player run toggle (2 tiles per WASD move instead of 1)
+  run: boolean = true;
+  private heldMovementKeys: Set<string> = new Set();
+  private pendingMoveKeys: Set<string> = new Set();
+  private pendingMoveTimer: ReturnType<typeof setTimeout> | null = null;
+  private lastKeyMoveTime = 0;
 
   replay: Coordinates[] | null = null;
   replayTick: number | null = null;
@@ -210,6 +224,11 @@ export class LineOfSight {
     this.showVenatorBounce = show;
     this.onUpdateSubscribers();
   };
+
+  public setRun = (val: boolean) => {
+    this.run = val;
+    this.onUpdateSubscribers();
+  };
   
   private updateUi() {
     // currently, we always fire subscriber events
@@ -221,6 +240,7 @@ export class LineOfSight {
     const uiState = {
       mantimayhem3: this.mantimayhem3,
       fromWaveStart: this.fromWaveStart,
+      run: this.run,
       isReplaying: !!this.replayAuto,
       hasReplay: !!this.replay && this.replayTick !== null && !!this.replay[this.replayTick],
       replayLength: this.replay?.length ?? null,
@@ -236,15 +256,122 @@ export class LineOfSight {
   }
 
   public handleKeyDown(e: KeyboardEvent) {
-    switch (e.keyCode) {
-      case 38:
+    const key = e.key.toLowerCase();
+    if (
+      MOVEMENT_KEYS.includes(key) &&
+      !e.ctrlKey &&
+      !e.metaKey &&
+      !e.altKey
+    ) {
+      this.heldMovementKeys.add(key);
+      this.pendingMoveKeys.add(key);
+      // throttle held-key auto-repeat so run doesn't fly across the map
+      const now = Date.now();
+      if (e.repeat && now - this.lastKeyMoveTime < KEY_REPEAT_MOVE_MS) {
+        e.preventDefault();
+        return;
+      }
+      this.lastKeyMoveTime = now;
+      // collect keys pressed within a short window so W+A pressed together
+      // becomes one diagonal turn instead of an up turn then a diagonal turn
+      if (!this.pendingMoveTimer) {
+        this.pendingMoveTimer = setTimeout(() => {
+          this.pendingMoveTimer = null;
+          const keys = new Set([
+            ...this.pendingMoveKeys,
+            ...this.heldMovementKeys,
+          ]);
+          this.pendingMoveKeys.clear();
+          const dx = (keys.has("d") ? 1 : 0) - (keys.has("a") ? 1 : 0);
+          const dy = (keys.has("s") ? 1 : 0) - (keys.has("w") ? 1 : 0);
+          this.movePlayer(dx, dy);
+        }, KEY_CHORD_WINDOW_MS);
+      }
+      e.preventDefault();
+      return;
+    }
+    switch (e.key) {
+      case "ArrowUp":
         this.step(true);
         break;
-      case 40:
+      case "ArrowDown":
         this.reset();
         break;
     }
   };
+
+  public handleKeyUp(e: KeyboardEvent) {
+    this.heldMovementKeys.delete(e.key.toLowerCase());
+  };
+
+  public clearHeldKeys() {
+    this.heldMovementKeys.clear();
+    this.pendingMoveKeys.clear();
+    if (this.pendingMoveTimer) {
+      clearTimeout(this.pendingMoveTimer);
+      this.pendingMoveTimer = null;
+    }
+  };
+
+  /**
+   * Move the player 1 tile (walk) or 2 tiles (run) in the given direction as
+   * a single turn, respecting walls/pillars and OSRS corner-cutting rules.
+   * Moving advances the simulation by one tick.
+   */
+  public movePlayer(dx: number, dy: number) {
+    if (dx === 0 && dy === 0) {
+      return;
+    }
+    if (this.replay) {
+      this.stopReplay();
+    }
+    const isFirstTick = this.tickCount === 0;
+    const prev: Coordinates = [...this.selected];
+    const steps = this.run ? 2 : 1;
+    let [x, y] = this.selected;
+    for (let i = 0; i < steps; i++) {
+      const next = this.playerStep(x, y, dx, dy);
+      if (!next) {
+        break;
+      }
+      [x, y] = next;
+    }
+    if (x === prev[0] && y === prev[1]) {
+      // fully blocked, no turn happens
+      this.drawWave();
+      return;
+    }
+    this.selected = [x, y];
+    this.step(true);
+    if (isFirstTick) {
+      // the turn starts where the player stood before moving, not where they
+      // ended up, so reset() returns them there
+      this.stepStartPosition = prev;
+    }
+  }
+
+  /**
+   * Compute a single 1-tile player step, or null if fully blocked.
+   * Diagonal movement cannot cut corners: both adjacent cardinal tiles must
+   * be free, otherwise fall back to a cardinal step (like npc movement).
+   */
+  private playerStep(x: number, y: number, dx: number, dy: number): Coordinates | null {
+    const free = (px: number, py: number) =>
+      px >= 0 && px < MAP_WIDTH && py >= 0 && py < MAP_HEIGHT && !this.isPillar(px, py);
+    if (dx !== 0 && dy !== 0) {
+      if (free(x + dx, y + dy) && free(x + dx, y) && free(x, y + dy)) {
+        return [x + dx, y + dy];
+      }
+      if (free(x + dx, y)) {
+        return [x + dx, y];
+      }
+      if (free(x, y + dy)) {
+        return [x, y + dy];
+      }
+      return null;
+    }
+    return free(x + dx, y + dy) ? [x + dx, y + dy] : null;
+  }
 
   public onCanvasMouseDown(e: React.MouseEvent) {
     var x = e.nativeEvent.offsetX;
