@@ -113,6 +113,7 @@ describe("url tests", () => {
         isFromWaveStart: false,
         isMantiMayhem3: false,
         isReplay: false,
+        mobTicksRemaining: [],
       });
     });
     
@@ -123,6 +124,7 @@ describe("url tests", () => {
         isFromWaveStart: false,
         isMantiMayhem3: false,
         isReplay: false,
+        mobTicksRemaining: [0],
       });
     });
 
@@ -133,6 +135,7 @@ describe("url tests", () => {
         isFromWaveStart: false,
         isMantiMayhem3: false,
         isReplay: false,
+        mobTicksRemaining: [0],
       });
     });
 
@@ -143,6 +146,7 @@ describe("url tests", () => {
         isFromWaveStart: false,
         isMantiMayhem3: false,
         isReplay: true,
+        mobTicksRemaining: [0],
       });
     });
 
@@ -153,6 +157,7 @@ describe("url tests", () => {
         isFromWaveStart: true,
         isMantiMayhem3: false,
         isReplay: true,
+        mobTicksRemaining: [0],
       });
     });
 
@@ -163,6 +168,7 @@ describe("url tests", () => {
         isFromWaveStart: false,
         isMantiMayhem3: true,
         isReplay: true,
+        mobTicksRemaining: [0],
       });
     });
 
@@ -173,7 +179,161 @@ describe("url tests", () => {
         isFromWaveStart: true,
         isMantiMayhem3: true,
         isReplay: true,
+        mobTicksRemaining: [0],
       });
+    });
+  });
+
+  describe("cooldown encoding tests", () => {
+    test("replay url with no cooldowns omits _cd", () => {
+      const replay: ReplayData = {
+        mobSpecs: [createMob(0, 0, 1)],
+        playerPositions: [[0, 0]],
+        mobCooldowns: [0],
+      };
+      expect(getReplayURL(replay)).toBe("http://localhost:3000/?00001.#0");
+    });
+
+    test("replay url with non-zero cooldowns appends _cd", () => {
+      const replay: ReplayData = {
+        mobSpecs: [createMob(0, 0, 1), createMob(5, 5, 2)],
+        playerPositions: [[0, 0]],
+        mobCooldowns: [3, 0],
+      };
+      expect(getReplayURL(replay)).toBe("http://localhost:3000/?00001.05052.#0_cd:3,0");
+    });
+
+    test("_cd with _ws", () => {
+      const replay: ReplayData = {
+        mobSpecs: [createMob(0, 0, 1)],
+        playerPositions: [[0, 0]],
+        mobCooldowns: [5],
+      };
+      expect(getReplayURL(replay, true)).toBe("http://localhost:3000/?00001.#0_ws_cd:5");
+    });
+
+    test("_cd with _mm3", () => {
+      const replay: ReplayData = {
+        mobSpecs: [createMob(0, 0, 1)],
+        playerPositions: [[0, 0]],
+        mobCooldowns: [2],
+      };
+      expect(getReplayURL(replay, false, true)).toBe("http://localhost:3000/?00001.#0_mm3_cd:2");
+    });
+
+    test("_cd with _ws and _mm3", () => {
+      const replay: ReplayData = {
+        mobSpecs: [createMob(0, 0, 1)],
+        playerPositions: [[0, 0]],
+        mobCooldowns: [7],
+      };
+      expect(getReplayURL(replay, true, true)).toBe("http://localhost:3000/?00001.#0_ws_mm3_cd:7");
+    });
+  });
+
+  describe("cooldown decoding tests", () => {
+    test("decoding url with _cd sets mob cooldowns", () => {
+      const result = decodeURL(new URL("http://localhost:5173/?11092.#2311.2055_cd:3,0"));
+      expect(result.mobs[0][5]).toBe(3);
+    });
+
+    test("decoding url without _cd leaves cooldowns at 0", () => {
+      const result = decodeURL(new URL("http://localhost:5173/?11092.#2311.2055"));
+      expect(result.mobs[0][5]).toBe(0);
+    });
+
+    test("decoding url with _ws and _cd", () => {
+      const result = decodeURL(new URL("http://localhost:5173/?11092.#2311_ws_cd:5"));
+      expect(result.isFromWaveStart).toBe(true);
+      expect(result.mobs[0][5]).toBe(5);
+    });
+
+    test("decoding url with _mm3 and _cd", () => {
+      const result = decodeURL(new URL("http://localhost:5173/?11092.#2311_mm3_cd:4"));
+      expect(result.isMantiMayhem3).toBe(true);
+      expect(result.mobs[0][5]).toBe(4);
+    });
+
+    test("decoding url with _ws, _mm3, and _cd", () => {
+      const result = decodeURL(new URL("http://localhost:5173/?11092.#2311_ws_mm3_cd:9"));
+      expect(result.isFromWaveStart).toBe(true);
+      expect(result.isMantiMayhem3).toBe(true);
+      expect(result.mobs[0][5]).toBe(9);
+    });
+
+    test("_cd backwards compat: old urls without _cd still parse correctly", () => {
+      const result = decodeURL(new URL("http://localhost:5173/?11092.#2311.2055_ws"));
+      expect(result.mobs[0][5]).toBe(0);
+      expect(result.isFromWaveStart).toBe(true);
+    });
+  });
+
+  describe("manticore orb sequence encoding tests", () => {
+    test("replay url with no ticks remaining and no cooldowns omits _cd", () => {
+      const replay: ReplayData = {
+        mobSpecs: [createMob(0, 0, 1)],
+        playerPositions: [[0, 0]],
+        mobCooldowns: [0],
+        mobTicksRemaining: [0],
+      };
+      expect(getReplayURL(replay)).toBe("http://localhost:3000/?00001.#0");
+    });
+
+    test("replay url with non-zero ticks remaining appends cooldown:ticks pair", () => {
+      const replay: ReplayData = {
+        mobSpecs: [createMob(0, 0, 1), createMob(5, 5, 2)],
+        playerPositions: [[0, 0]],
+        mobCooldowns: [10, 0],
+        mobTicksRemaining: [2, 0],
+      };
+      expect(getReplayURL(replay)).toBe("http://localhost:3000/?00001.05052.#0_cd:10:2,0");
+    });
+
+    test("ticks remaining alone (no other cooldowns) still emits _cd", () => {
+      const replay: ReplayData = {
+        mobSpecs: [createMob(0, 0, 1)],
+        playerPositions: [[0, 0]],
+        mobTicksRemaining: [1],
+      };
+      expect(getReplayURL(replay)).toBe("http://localhost:3000/?00001.#0_cd:0:1");
+    });
+
+    test("cooldown:ticks pair combined with _ws and _mm3", () => {
+      const replay: ReplayData = {
+        mobSpecs: [createMob(0, 0, 1)],
+        playerPositions: [[0, 0]],
+        mobCooldowns: [10],
+        mobTicksRemaining: [1],
+      };
+      expect(getReplayURL(replay, true, true)).toBe(
+        "http://localhost:3000/?00001.#0_ws_mm3_cd:10:1"
+      );
+    });
+  });
+
+  describe("manticore orb sequence decoding tests", () => {
+    test("decoding url with cooldown:ticks pair sets both cooldown and mobTicksRemaining", () => {
+      const result = decodeURL(new URL("http://localhost:5173/?11092.#2311.2055_cd:10:2"));
+      expect(result.mobs[0][5]).toBe(10);
+      expect(result.mobTicksRemaining).toEqual([2]);
+    });
+
+    test("decoding url with plain cooldown (no ticks suffix) leaves mobTicksRemaining at 0", () => {
+      const result = decodeURL(new URL("http://localhost:5173/?11092.#2311.2055_cd:10"));
+      expect(result.mobs[0][5]).toBe(10);
+      expect(result.mobTicksRemaining).toEqual([0]);
+    });
+
+    test("decoding url without _cd leaves mobTicksRemaining at 0", () => {
+      const result = decodeURL(new URL("http://localhost:5173/?11092.#2311.2055"));
+      expect(result.mobTicksRemaining).toEqual([0]);
+    });
+
+    test("decoding url with multiple cooldown:ticks pairs", () => {
+      const result = decodeURL(new URL("http://localhost:5173/?11092.11092.#2311.2055_cd:10:2,5"));
+      expect(result.mobs[0][5]).toBe(10);
+      expect(result.mobTicksRemaining).toEqual([2, 0]);
+      expect(result.mobs[1][5]).toBe(5);
     });
   });
 
