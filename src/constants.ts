@@ -84,12 +84,12 @@ export const blockedTileRanges: Coordinates[][] = [
     [27, 34],
   ], // 2
   [
-    [0, 6],
+    [0, 5],
     [29, 34],
   ], // 3
   [
-    [0, 5],
-    [29, 34],
+    [0, 4],
+    [30, 34],
   ], // 4
   [
     [0, 3],
@@ -181,8 +181,8 @@ export const blockedTileRanges: Coordinates[][] = [
   ],
 
   [
-    [0, 5],
-    [29, 34],
+    [0, 4],
+    [30, 34],
   ],
   [
     [0, 5],
