@@ -873,7 +873,7 @@ export class LineOfSight {
     }
   }
 
-  private processAttacks(canAttack: boolean): { line: TapeEntry, manticoreFired: boolean } {
+  private processAttacks(canAttack: boolean, preMovePositions: Coordinates[]): { line: TapeEntry, manticoreFired: boolean } {
     let line: TapeEntry = [];
     let manticoreFiredThisTick = false;
 
@@ -904,7 +904,10 @@ export class LineOfSight {
             }
           }
         }
-        const value = attacked | ((x & 0xff) << 16) | ((y & 0xff) << 24);
+        // The tape records the position from BEFORE this tick's movement,
+        // so that a replay seeded from tape[n] reproduces tick n exactly.
+        const [px, py] = preMovePositions[i];
+        const value = attacked | ((px & 0xff) << 16) | ((py & 0xff) << 24);
         line.push(value);
       }
     }
@@ -941,6 +944,8 @@ export class LineOfSight {
       const canMove = this.fromWaveStart ? this.tickCount > 0 : true;
       const canGainLos = this.fromWaveStart ? this.tickCount > 1 : true;
 
+      const preMovePositions: Coordinates[] = this.mobs.map((m) => [m[0], m[1]]);
+
       // Move all mobs
       this.moveMobs(canMove, canGainLos);
 
@@ -948,7 +953,7 @@ export class LineOfSight {
       this.handleManticoreCharging(canAttack);
 
       // Process attacks
-      const { line, manticoreFired } = this.processAttacks(canAttack);
+      const { line, manticoreFired } = this.processAttacks(canAttack, preMovePositions);
 
       // Record manticore orb progression in attack tape
       this.recordManticoreOrbSequence(line);
