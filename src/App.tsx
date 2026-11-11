@@ -107,12 +107,6 @@ function App() {
           {/* this div houses the player & npc buttons *row* within the column */}
           <div className="units-row">
             <DraggableUnitButton
-              mode={0}
-              image="./player.png"
-              borderColor="red"
-              tooltip="Place the Player by dragging onto the map."
-            />
-            <DraggableUnitButton
               mode={1}
               image="./serpent_shaman.png"
               borderColor="cyan"
@@ -179,8 +173,7 @@ function App() {
           {/* this is the mantimayhem 3 units row that appear conditionally */}
           {lineOfSight?.mantimayhem3 && (
             <div className="units-row mm3-row">
-              {/* 3 placeholder units on the left */}
-              <div style={{ width: 64, height: 64 }}></div>
+              {/* 2 placeholder units on the left */}
               <div style={{ width: 64, height: 64 }}></div>
               <div style={{ width: 64, height: 64 }}></div>
               <DraggableUnitButton
