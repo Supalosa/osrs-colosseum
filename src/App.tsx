@@ -327,6 +327,16 @@ function App() {
         >
           Step
         </button>
+        <button
+          disabled={!uiState?.hasNpcs}
+          onClick={() => {
+            if (lineOfSight?.randomiseSpawns() === false) {
+              alert("There aren't enough unblocked spawn tiles for all NPCs.");
+            }
+          }}
+        >
+          Randomise Spawn
+        </button>
       </div>
       <canvas
         ref={handleCanvas}

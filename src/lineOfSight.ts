@@ -224,6 +224,7 @@ export class LineOfSight {
       isReplaying: !!this.replayAuto,
       hasReplay: !!this.replay && this.replayTick !== null && !!this.replay[this.replayTick],
       replayLength: this.replay?.length ?? null,
+      hasNpcs: this.mobs.length > 0,
       canSaveReplay: !this.replayAuto && this.tape.length > 0 && this.tape.length <= 32,
       replayTick: this.replayTick ?? 0
     }
@@ -990,6 +991,40 @@ export class LineOfSight {
     this.updateUi();
   }
 
+  private isSpawnBlocked([x, y]: Coordinates) {
+    const [playerX, playerY] = this.selected;
+    const distance = Math.max(Math.abs(x - playerX), Math.abs(y - playerY));
+    return distance <= 4;
+  }
+
+  public randomiseSpawns() {
+    const available = SPAWNS.filter((spawn) => !this.isSpawnBlocked(spawn));
+    if (available.length < this.mobs.length) {
+      return false;
+    }
+    if (this.mobs.length === 0) {
+      return true;
+    }
+
+    for (const mob of this.mobs) {
+      const index = Math.floor(Math.random() * available.length);
+      const [[x, y]] = available.splice(index, 1);
+      mob[3] = x;
+      mob[4] = y;
+      if (mob[2] === MANTICORE) {
+        mob[7] = "u";
+      }
+    }
+
+    this.stopReplay();
+    this.stepStartPosition = null;
+    this.mode = MODE_PLAYER;
+    this.modeExtra = null;
+    this.mousedOverNpc = null;
+    this.reset();
+    return true;
+  }
+
   public remove() {
     this.mobs = [];
     this.stopReplay();
@@ -1160,23 +1195,26 @@ export class LineOfSight {
       );
     }
     if (this.showSpawns) {
-      ctx.globalAlpha = 0.35;
-    } else {
-      ctx.globalAlpha = 0;
+      ctx.save();
+      ctx.fillStyle = ctx.strokeStyle = "#999";
+      ctx.setLineDash([4, 3]);
+      const size = scale(3);
+      for (const spawn of SPAWNS) {
+        const [x, y] = spawn;
+        const left = scale(x);
+        const top = scale(y - 2);
+        const blocked = this.isSpawnBlocked(spawn);
+        ctx.globalAlpha = blocked ? 0.12 : 0.35;
+        ctx.fillRect(left, top, size, size);
+        if (blocked) {
+          ctx.globalAlpha = 0.55;
+          ctx.strokeRect(left + 0.5, top + 0.5, size - 1, size - 1);
+        }
+      }
+      ctx.restore();
     }
-    ctx.fillStyle = "#999";
-    for (var i = 0; i < SPAWNS.length; i++) {
-      ctx.fillRect(
-        SPAWNS[i][0] * TILE_SIZE,
-        (SPAWNS[i][1] + 1) * TILE_SIZE,
-        3 * TILE_SIZE,
-        -3 * TILE_SIZE
-      );
-    }
-    ctx.globalAlpha = 1;
     ctx.fillStyle = "#9F9";
     ctx.fillRect(scale(B5_ORIGIN_TILE[0]), scale(B5_ORIGIN_TILE[1]), TILE_SIZE, TILE_SIZE);
-    ctx.globalAlpha = 1;
     //mobs
     for (var i = 0; i < this.mobs.length; i++) {
       var x = this.mobs[i][0];
